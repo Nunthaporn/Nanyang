@@ -143,9 +143,12 @@ def details(page: int = 1, page_size: int = Query(50, le=200)):
     return {"items": [], "page": page, "page_size": page_size, "total": 0}
 
 
-# EFF Last date by Line: use teffdata."EasyLean Line" for every factory,
-# including EA. Latest date remains calculated per factory, matching the
-# existing chart logic. Product Type tooltip comes from teffdata."PD_Type".
+# EFF Last date by Line:
+# - always use teffdata."EasyLean Line" for the line key, including EA
+# - calculate the latest production date independently for each EasyLean Line
+#   so a line does not disappear just because another line in the same factory
+#   has a newer date
+# - Product Type tooltip comes from teffdata."PD_Type"
 EASY_LATEST_BY_LINE_SQL = text(r'''
 WITH prepared AS (
     SELECT
@@ -170,20 +173,23 @@ WITH prepared AS (
         )
         AND e."FACTORY" IS NOT NULL
         AND BTRIM(e."FACTORY"::text) <> ''
+        AND NULLIF(BTRIM(e."EasyLean Line"::text), '') IS NOT NULL
 ),
-latest_by_factory AS (
-    SELECT factory, MAX(produce_date) AS latest_date
+latest_by_line AS (
+    SELECT
+        factory,
+        display_line,
+        MAX(produce_date) AS latest_date
     FROM prepared
-    WHERE display_line IS NOT NULL
-    GROUP BY factory
+    GROUP BY factory, display_line
 ),
 latest_data AS (
     SELECT p.*
     FROM prepared p
-    INNER JOIN latest_by_factory l
+    INNER JOIN latest_by_line l
         ON p.factory = l.factory
+       AND p.display_line = l.display_line
        AND p.produce_date = l.latest_date
-    WHERE p.display_line IS NOT NULL
 ),
 line_total AS (
     SELECT
