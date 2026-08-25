@@ -10,4 +10,155 @@ body { min-width: 320px; }
 .nanyang-tabs button.active { background: #0f172a; color: #fff; border-color: #0f172a; }
 .nanyang-content { min-height: calc(100vh - 62px); }
 .nanyang-loading { padding: 48px; text-align: center; font: 600 15px system-ui, sans-serif; color: #475569; }
-@media (max-width: 640px) { .nanyang-topbar { align-items: flex-start; flex-direction: column; padding: 10px 14px; } .nanyang-tabs { width: 100%; } .nanyang-tabs button { flex: 1; } }
+
+/* =========================================================
+   VVIC unified layout overrides
+   Keep these scoped to .dashboard-main so Easy Lean is unchanged.
+   ========================================================= */
+.dashboard-main {
+  width: min(100%, 1680px);
+  margin: 0 auto;
+  padding: 22px 28px 28px !important;
+}
+
+.dashboard-main > header {
+  grid-template-columns: minmax(250px, 1fr) 178px 170px 170px minmax(460px, 1.9fr) 116px !important;
+  gap: 12px !important;
+}
+
+.dashboard-main .grid-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  gap: 16px !important;
+  align-items: start;
+}
+
+.dashboard-main .left,
+.dashboard-main .right {
+  min-width: 0;
+}
+
+.dashboard-main .kpis {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+  margin-bottom: 14px !important;
+}
+
+.dashboard-main .kpi {
+  height: 128px !important;
+  min-width: 0;
+  padding: 20px 22px !important;
+}
+
+.dashboard-main .kpi > span {
+  font-size: 13px !important;
+}
+
+.dashboard-main .kpi > b {
+  margin-top: 20px !important;
+  font-size: clamp(30px, 2.35vw, 38px) !important;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.dashboard-main .trend {
+  height: 500px !important;
+}
+
+.dashboard-main .trend > div:last-child {
+  height: 390px !important;
+}
+
+.dashboard-main .right {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 14px !important;
+}
+
+.dashboard-main .factory-card,
+.dashboard-main .customer-card {
+  width: 100%;
+  min-width: 0;
+}
+
+.dashboard-main .factory-card {
+  height: 306px !important;
+  padding: 20px 22px !important;
+}
+
+.dashboard-main .factory-card > div:last-child {
+  height: 215px !important;
+}
+
+.dashboard-main .customer-card {
+  height: 308px !important;
+  padding: 20px 22px !important;
+}
+
+.dashboard-main .customer-card > div:last-child {
+  height: 230px !important;
+  max-height: 230px !important;
+}
+
+.dashboard-main .customer-card > div:last-child > div {
+  max-height: 230px !important;
+}
+
+.dashboard-main .card-title h2 {
+  margin-top: 6px !important;
+  margin-bottom: 4px !important;
+}
+
+.dashboard-main .status {
+  margin: 12px 0 14px !important;
+}
+
+@media (max-width: 1450px) {
+  .dashboard-main {
+    padding: 18px 20px 24px !important;
+  }
+
+  .dashboard-main > header {
+    grid-template-columns: 220px 160px 155px 155px minmax(380px, 1fr) 92px !important;
+  }
+
+  .dashboard-main .grid-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  }
+
+  .dashboard-main .kpi > b {
+    font-size: clamp(28px, 2.15vw, 34px) !important;
+  }
+}
+
+@media (max-width: 1100px) {
+  .dashboard-main .grid-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  .dashboard-main .trend,
+  .dashboard-main .factory-card,
+  .dashboard-main .customer-card {
+    height: auto !important;
+    min-height: 360px;
+  }
+}
+
+@media (max-width: 900px) {
+  .dashboard-main {
+    padding: 16px !important;
+  }
+
+  .dashboard-main .kpis {
+    grid-template-columns: 1fr !important;
+  }
+
+  .dashboard-main .kpi {
+    height: 120px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .nanyang-topbar { align-items: flex-start; flex-direction: column; padding: 10px 14px; }
+  .nanyang-tabs { width: 100%; }
+  .nanyang-tabs button { flex: 1; }
+}
