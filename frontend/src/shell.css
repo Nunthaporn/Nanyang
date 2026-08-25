@@ -1,0 +1,13 @@
+html, body, #root { margin: 0; min-height: 100%; }
+body { min-width: 320px; }
+.nanyang-shell { min-height: 100vh; background: #eef3f7; }
+.nanyang-topbar { position: sticky; top: 0; z-index: 1000; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 12px 24px; background: #fff; border-bottom: 1px solid #dbe3ea; box-shadow: 0 2px 10px rgba(15, 23, 42, .06); }
+.nanyang-brand { display: flex; align-items: baseline; gap: 10px; white-space: nowrap; }
+.nanyang-brand strong { font-size: 18px; letter-spacing: .08em; }
+.nanyang-brand span { font-size: 12px; color: #64748b; }
+.nanyang-tabs { display: flex; gap: 8px; }
+.nanyang-tabs button { border: 1px solid #cbd5e1; background: #f8fafc; color: #334155; padding: 9px 18px; border-radius: 999px; font: inherit; font-weight: 700; cursor: pointer; }
+.nanyang-tabs button.active { background: #0f172a; color: #fff; border-color: #0f172a; }
+.nanyang-content { min-height: calc(100vh - 62px); }
+.nanyang-loading { padding: 48px; text-align: center; font: 600 15px system-ui, sans-serif; color: #475569; }
+@media (max-width: 640px) { .nanyang-topbar { align-items: flex-start; flex-direction: column; padding: 10px 14px; } .nanyang-tabs { width: 100%; } .nanyang-tabs button { flex: 1; } }
