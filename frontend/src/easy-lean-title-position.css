@@ -1,0 +1,17 @@
+/* Fine-tune Easy Lean title position inside the unified Nanyang shell. */
+.nanyang-content > .page .easy-title-wrap {
+  position: relative;
+  top: 5px;
+}
+
+@media (max-width: 1180px) {
+  .nanyang-content > .page .easy-title-wrap {
+    top: 2px;
+  }
+}
+
+@media (max-width: 650px) {
+  .nanyang-content > .page .easy-title-wrap {
+    top: 0;
+  }
+}
