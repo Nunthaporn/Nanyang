@@ -1,1 +1,0 @@
-apps/easy-lean should point to commit 7efb26da4dbae26369816424984bc2f89b070f0a
