@@ -80,11 +80,49 @@ body { min-width: 320px; }
 .dashboard-main .status { margin: 12px 0 14px !important; }
 
 /* =========================================================
+   EASY LEAN compact header
+   Remove the large vertical dead space above KPI cards.
+   ========================================================= */
+.nanyang-content > .page .easy-topbar {
+  min-height: 0 !important;
+  padding: 20px 28px 8px !important;
+  gap: 18px !important;
+  align-items: center !important;
+}
+.nanyang-content > .page .easy-title-wrap {
+  padding-top: 0 !important;
+  min-width: 280px;
+  align-self: center;
+}
+.nanyang-content > .page .easy-controls-wrap {
+  gap: 6px !important;
+  justify-content: center;
+}
+.nanyang-content > .page .easy-controls-row {
+  gap: 10px !important;
+  align-items: center !important;
+}
+.nanyang-content > .page .easy-refresh-row {
+  min-height: 14px !important;
+  gap: 14px !important;
+  margin-top: 0 !important;
+  line-height: 1.1;
+}
+.nanyang-content > .page .easy-refresh-row .status,
+.nanyang-content > .page .easy-refresh-row .refresh-text {
+  margin: 0 !important;
+  line-height: 1.1 !important;
+}
+.nanyang-content > .page .dashboard {
+  margin-top: 4px !important;
+}
+
+/* =========================================================
    EASY LEAN card layout overrides
    Make Easy Lean use the same card language as VVIC.
    ========================================================= */
 .nanyang-content > .page .dashboard {
-  margin: 0 28px 26px !important;
+  margin: 4px 28px 26px !important;
   padding: 0 !important;
   background: transparent !important;
   border-radius: 0 !important;
@@ -186,6 +224,9 @@ body { min-width: 320px; }
   .dashboard-main .kpi > b {
     font-size: clamp(28px, 2.15vw, 34px) !important;
   }
+  .nanyang-content > .page .easy-topbar {
+    padding: 16px 20px 6px !important;
+  }
   .nanyang-content > .page .dashboard {
     margin-left: 20px !important;
     margin-right: 20px !important;
@@ -193,6 +234,11 @@ body { min-width: 320px; }
 }
 
 @media (max-width: 1180px) {
+  .nanyang-content > .page .easy-topbar {
+    padding-top: 14px !important;
+    flex-direction: column;
+    align-items: stretch !important;
+  }
   .nanyang-content > .page .kpis {
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   }
@@ -222,6 +268,7 @@ body { min-width: 320px; }
   .nanyang-topbar { align-items: flex-start; flex-direction: column; padding: 10px 14px; }
   .nanyang-tabs { width: 100%; }
   .nanyang-tabs button { flex: 1; }
+  .nanyang-content > .page .easy-topbar { padding: 12px !important; }
   .nanyang-content > .page .dashboard {
     margin: 0 12px 16px !important;
   }
