@@ -144,15 +144,18 @@ def details(page: int = 1, page_size: int = Query(50, le=200)):
 
 
 # EFF Last date by Line:
-# - always use teffdata."EasyLean Line" for the line key, including EA
-# - calculate the latest production date independently for each EasyLean Line
-#   so a line does not disappear just because another line in the same factory
-#   has a newer date
-# - Product Type tooltip comes from teffdata."PD_Type"
+# - line key = teffdata."EasyLean Line" for every factory, including EA
+# - Easy Lean factory key = teffdata."EasyLean Fac" when present,
+#   otherwise fall back to teffdata."FACTORY"
+# - latest date is calculated independently per EasyLean Line
+# - Product Type tooltip = teffdata."PD_Type"
 EASY_LATEST_BY_LINE_SQL = text(r'''
 WITH prepared AS (
     SELECT
-        e."FACTORY"::text AS factory,
+        COALESCE(
+            NULLIF(BTRIM(e."EasyLean Fac"::text), ''),
+            NULLIF(BTRIM(e."FACTORY"::text), '')
+        ) AS factory,
         e."Date"::date AS produce_date,
         NULLIF(BTRIM(e."EasyLean Line"::text), '') AS display_line,
         COALESCE(NULLIF(BTRIM(e."PD_Type"::text), ''), 'UNKNOWN') AS product_type,
@@ -161,18 +164,35 @@ WITH prepared AS (
     FROM public.teffdata e
     WHERE
         e."Date"::date BETWEEN :start_date AND :end_date
-        AND (CAST(:factory AS text) IS NULL OR e."FACTORY"::text = CAST(:factory AS text))
-        AND (CAST(:selected_factory AS text) IS NULL OR e."FACTORY"::text = CAST(:selected_factory AS text))
+        AND (
+            CAST(:factory AS text) IS NULL
+            OR COALESCE(
+                NULLIF(BTRIM(e."EasyLean Fac"::text), ''),
+                NULLIF(BTRIM(e."FACTORY"::text), '')
+            ) = CAST(:factory AS text)
+        )
+        AND (
+            CAST(:selected_factory AS text) IS NULL
+            OR COALESCE(
+                NULLIF(BTRIM(e."EasyLean Fac"::text), ''),
+                NULLIF(BTRIM(e."FACTORY"::text), '')
+            ) = CAST(:selected_factory AS text)
+        )
         AND (
             CAST(:selected_line AS text) IS NULL
             OR NULLIF(BTRIM(e."EasyLean Line"::text), '') = CAST(:selected_line AS text)
         )
         AND (
             CAST(:selected_line_factory AS text) IS NULL
-            OR e."FACTORY"::text = CAST(:selected_line_factory AS text)
+            OR COALESCE(
+                NULLIF(BTRIM(e."EasyLean Fac"::text), ''),
+                NULLIF(BTRIM(e."FACTORY"::text), '')
+            ) = CAST(:selected_line_factory AS text)
         )
-        AND e."FACTORY" IS NOT NULL
-        AND BTRIM(e."FACTORY"::text) <> ''
+        AND COALESCE(
+            NULLIF(BTRIM(e."EasyLean Fac"::text), ''),
+            NULLIF(BTRIM(e."FACTORY"::text), '')
+        ) IS NOT NULL
         AND NULLIF(BTRIM(e."EasyLean Line"::text), '') IS NOT NULL
 ),
 latest_by_line AS (
