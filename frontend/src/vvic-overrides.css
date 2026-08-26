@@ -1,0 +1,78 @@
+/* Nanyang-only VVIC layout refinements. */
+
+/* Use more of the available viewport width instead of leaving large side gutters. */
+.nanyang-content .dashboard-main {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding-left: 14px !important;
+  padding-right: 14px !important;
+}
+
+/* Remove the dedicated refresh-button column. */
+.nanyang-content .dashboard-main > header {
+  grid-template-columns:
+    minmax(250px, .95fr)
+    178px
+    170px
+    170px
+    minmax(560px, 2.25fr) !important;
+  column-gap: 12px !important;
+}
+
+/* The user only wants the refresh timestamp, not the refresh button. */
+.nanyang-content .dashboard-main .refresh-data {
+  display: none !important;
+}
+
+/* Keep the status row compact and push REFRESH all the way to the right,
+   away from the EA factory tab. */
+.nanyang-content .dashboard-main .status {
+  position: relative !important;
+  min-height: 20px !important;
+  margin: 8px 0 12px !important;
+  padding-right: 4px !important;
+}
+
+.nanyang-content .dashboard-main .refresh-time {
+  position: absolute !important;
+  right: 0 !important;
+  top: 0 !important;
+  margin: 0 !important;
+  white-space: nowrap !important;
+  text-align: right !important;
+}
+
+/* Let both chart columns benefit from the additional width. */
+.nanyang-content .dashboard-main .grid-layout {
+  width: 100% !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+}
+
+@media (max-width: 1450px) {
+  .nanyang-content .dashboard-main {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  .nanyang-content .dashboard-main > header {
+    grid-template-columns:
+      220px
+      160px
+      155px
+      155px
+      minmax(430px, 1fr) !important;
+  }
+}
+
+@media (max-width: 1100px) {
+  .nanyang-content .dashboard-main > header {
+    grid-template-columns: 1fr !important;
+  }
+
+  .nanyang-content .dashboard-main .refresh-time {
+    position: static !important;
+    display: block !important;
+    margin-left: auto !important;
+  }
+}
