@@ -22,8 +22,6 @@ def build_min_vs_eff_router(get_db):
             "factory": None if not factory or factory.upper() == "ALL" else factory.upper(),
         }
 
-    # Safe parsing keeps this dashboard resilient if a CSV import stores Date as
-    # an Excel serial number and keeps malformed numeric cells from causing 500s.
     DATE_EXPR = r'''CASE
         WHEN BTRIM(e."Date"::text) ~ '^[0-9]+$'
             THEN DATE '1899-12-30' + BTRIM(e."Date"::text)::integer
@@ -89,7 +87,10 @@ def build_min_vs_eff_router(get_db):
             LEFT JOIN customer_dim cd
                 ON cd.cust_key = UPPER(BTRIM(e."Cust"::text))
             WHERE {DATE_EXPR} BETWEEN :start_date AND :end_date
-              AND (:factory IS NULL OR fd.factory = :factory)
+              AND (
+                    CAST(:factory AS text) IS NULL
+                    OR fd.factory = CAST(:factory AS text)
+              )
         ),
         heatmap AS (
             SELECT
