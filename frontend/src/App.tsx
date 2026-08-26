@@ -4,8 +4,9 @@ const VVICDashboard = lazy(() => import("../../apps/vvic/frontend/src/App"));
 const EasyLeanDashboard = lazy(() => import("../../apps/easy-lean/frontend/src/App"));
 const ModelLineDashboard = lazy(() => import("./model-line/ModelLineDashboard"));
 const MinVSEffDashboard = lazy(() => import("./min-vs-eff/MinVSEffDashboard"));
+const Overview02Dashboard = lazy(() => import("./overview02/Overview02Dashboard"));
 
-type DashboardKey = "vvic" | "easy-lean" | "model-line" | "min-vs-eff";
+type DashboardKey = "vvic" | "easy-lean" | "model-line" | "min-vs-eff" | "overview02";
 
 export default function App() {
   const [active, setActive] = useState<DashboardKey>("vvic");
@@ -22,6 +23,7 @@ export default function App() {
           <button className={active === "easy-lean" ? "active" : ""} onClick={() => setActive("easy-lean")}>EASY LEAN</button>
           <button className={active === "model-line" ? "active" : ""} onClick={() => setActive("model-line")}>MODEL-LINE</button>
           <button className={active === "min-vs-eff" ? "active" : ""} onClick={() => setActive("min-vs-eff")}>MinVSEff</button>
+          <button className={active === "overview02" ? "active" : ""} onClick={() => setActive("overview02")}>Overview02</button>
         </nav>
       </header>
 
@@ -31,6 +33,7 @@ export default function App() {
           {active === "easy-lean" && <EasyLeanDashboard />}
           {active === "model-line" && <ModelLineDashboard />}
           {active === "min-vs-eff" && <MinVSEffDashboard />}
+          {active === "overview02" && <Overview02Dashboard />}
         </Suspense>
       </main>
     </div>
