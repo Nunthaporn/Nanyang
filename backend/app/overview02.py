@@ -99,7 +99,10 @@ def build_overview02_router(get_db):
             LEFT JOIN so_dim sd
               ON sd.so_key = UPPER(BTRIM(e."# SO 8digit"::text))
             WHERE {DATE_EXPR} BETWEEN :start_date AND :end_date
-              AND (:factory IS NULL OR fd.factory = :factory)
+              AND (
+                    CAST(:factory AS text) IS NULL
+                    OR fd.factory = CAST(:factory AS text)
+              )
         ),
         daily_factory AS (
             SELECT
