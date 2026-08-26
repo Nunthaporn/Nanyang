@@ -1,6 +1,5 @@
 /* Nanyang-only VVIC layout refinements. */
 
-/* Use more of the available viewport width instead of leaving large side gutters. */
 .nanyang-content .dashboard-main {
   position: relative !important;
   width: 100% !important;
@@ -10,27 +9,24 @@
   padding-right: 14px !important;
 }
 
-/* Reserve a real column on the far right for REFRESH. Shrinking the whole
-   header is more reliable than padding it, and guarantees the EA tab can
-   never sit underneath the timestamp. */
+/* Leave a dedicated 260px lane on the right for REFRESH. This keeps the
+   factory selector and timestamp physically separate instead of layering them. */
 .nanyang-content .dashboard-main > header {
-  width: calc(100% - 195px) !important;
+  width: calc(100% - 260px) !important;
   grid-template-columns:
     minmax(250px, .95fr)
     178px
     170px
     170px
-    minmax(500px, 1.75fr) !important;
+    minmax(460px, 1.65fr) !important;
   column-gap: 12px !important;
   padding-right: 0 !important;
 }
 
-/* Remove the refresh button completely. */
 .nanyang-content .dashboard-main .refresh-data {
   display: none !important;
 }
 
-/* Keep the left status/filter area underneath the header. */
 .nanyang-content .dashboard-main .status {
   position: static !important;
   min-height: 20px !important;
@@ -38,23 +34,21 @@
   padding-right: 0 !important;
 }
 
-/* Put REFRESH in the dedicated space immediately to the right of the factory
-   selector, vertically aligned with the filter row. */
+/* Dedicated refresh lane to the right of the factory bar. */
 .nanyang-content .dashboard-main .refresh-time {
   position: absolute !important;
-  right: 18px !important;
+  right: 22px !important;
   top: 54px !important;
-  width: 172px !important;
+  width: 215px !important;
   margin: 0 !important;
   white-space: nowrap !important;
-  text-align: right !important;
+  text-align: left !important;
   color: #6b7fa3 !important;
   font-size: 10px !important;
   line-height: 1 !important;
   z-index: 5 !important;
 }
 
-/* Let both chart columns benefit from the additional width. */
 .nanyang-content .dashboard-main .grid-layout {
   width: 100% !important;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
@@ -67,18 +61,18 @@
   }
 
   .nanyang-content .dashboard-main > header {
-    width: calc(100% - 180px) !important;
+    width: calc(100% - 220px) !important;
     grid-template-columns:
       220px
       160px
       155px
       155px
-      minmax(380px, 1fr) !important;
+      minmax(350px, 1fr) !important;
   }
 
   .nanyang-content .dashboard-main .refresh-time {
     right: 12px !important;
-    width: 158px !important;
+    width: 190px !important;
   }
 }
 
