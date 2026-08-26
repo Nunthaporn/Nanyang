@@ -34,15 +34,16 @@
   padding-right: 0 !important;
 }
 
-/* Dedicated refresh lane to the right of the factory bar. */
+/* Dedicated refresh lane to the right of the factory bar. Let the text size
+   itself naturally and pin it close to the viewport edge. */
 .nanyang-content .dashboard-main .refresh-time {
   position: absolute !important;
   right: 22px !important;
   top: 54px !important;
-  width: 215px !important;
+  width: auto !important;
   margin: 0 !important;
   white-space: nowrap !important;
-  text-align: left !important;
+  text-align: right !important;
   color: #6b7fa3 !important;
   font-size: 10px !important;
   line-height: 1 !important;
@@ -72,7 +73,8 @@
 
   .nanyang-content .dashboard-main .refresh-time {
     right: 12px !important;
-    width: 190px !important;
+    width: auto !important;
+    text-align: right !important;
   }
 }
 
