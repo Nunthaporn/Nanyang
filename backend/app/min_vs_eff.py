@@ -31,13 +31,13 @@ def build_min_vs_eff_router(get_db):
     END'''
 
     MIN_OUTPUT_EXPR = r'''CASE
-        WHEN REGEXP_REPLACE(BTRIM(e."Min Output"::text), '[^0-9.-]', '', 'g') ~ '^-?[0-9]+(?:\.[0-9]+)?$'
+        WHEN REGEXP_REPLACE(BTRIM(e."Min Output"::text), '[^0-9.-]', '', 'g') ~ '^-?[0-9]+([.][0-9]+)?$'
             THEN REGEXP_REPLACE(BTRIM(e."Min Output"::text), '[^0-9.-]', '', 'g')::numeric
         ELSE NULL
     END'''
 
     MIN_INPUT_EXPR = r'''CASE
-        WHEN REGEXP_REPLACE(BTRIM(e."Min Input"::text), '[^0-9.-]', '', 'g') ~ '^-?[0-9]+(?:\.[0-9]+)?$'
+        WHEN REGEXP_REPLACE(BTRIM(e."Min Input"::text), '[^0-9.-]', '', 'g') ~ '^-?[0-9]+([.][0-9]+)?$'
             THEN REGEXP_REPLACE(BTRIM(e."Min Input"::text), '[^0-9.-]', '', 'g')::numeric
         ELSE NULL
     END'''
@@ -109,21 +109,26 @@ def build_min_vs_eff_router(get_db):
                 GREATEST(:start_date, DATE_TRUNC('month', CAST(:end_date AS date))::date)
                 AND :end_date
               AND customer IS NOT NULL
+              AND NULLIF(BTRIM(customer_type), '') IS NOT NULL
+        ),
+        typed_mtd AS (
+            SELECT
+                *,
+                CASE
+                    WHEN REGEXP_REPLACE(customer_type, '[^A-Z]', '', 'g') = 'VVIC' THEN 'VVIC'
+                    WHEN REGEXP_REPLACE(customer_type, '[^A-Z]', '', 'g') = 'NONVVIC' THEN 'NON-VVIC'
+                    ELSE NULL
+                END AS customer_group
+            FROM mtd
         ),
         customer_mtd AS (
             SELECT
                 customer,
-                CASE
-                    WHEN REPLACE(REPLACE(customer_type, ' ', ''), '_', '-') = 'VVIC' THEN 'VVIC'
-                    ELSE 'NON-VVIC'
-                END AS customer_group,
+                customer_group,
                 SUM(min_output) / NULLIF(SUM(min_input), 0) AS eff_pct
-            FROM mtd
-            GROUP BY customer,
-                CASE
-                    WHEN REPLACE(REPLACE(customer_type, ' ', ''), '_', '-') = 'VVIC' THEN 'VVIC'
-                    ELSE 'NON-VVIC'
-                END
+            FROM typed_mtd
+            WHERE customer_group IS NOT NULL
+            GROUP BY customer, customer_group
             HAVING SUM(min_input) <> 0
         )
         SELECT JSONB_BUILD_OBJECT(
