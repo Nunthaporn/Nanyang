@@ -68,11 +68,20 @@ body { min-width: 320px; }
   height: 308px !important;
   padding: 20px 22px !important;
 }
+
+/* Keep the card compact, but let the actual ECharts canvas grow based on
+   customers.length * 44 from the VVIC component. The outer viewport scrolls
+   vertically instead of squeezing every customer into ~230px. */
 .dashboard-main .customer-card > div:last-child {
   height: 230px !important;
   max-height: 230px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
 }
-.dashboard-main .customer-card > div:last-child > div { max-height: 230px !important; }
+.dashboard-main .customer-card > div:last-child > div {
+  max-height: none !important;
+}
+
 .dashboard-main .card-title h2 {
   margin-top: 6px !important;
   margin-bottom: 4px !important;
