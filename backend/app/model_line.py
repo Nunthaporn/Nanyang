@@ -46,7 +46,10 @@ def build_model_line_router(get_db):
             FROM public.teffdata e
             WHERE e."Date"::date BETWEEN :start_date AND :end_date
               AND NULLIF(BTRIM(e."Model Line"::text), '') IS NOT NULL
-              AND (:factory IS NULL OR UPPER(BTRIM(e."FACTORY"::text)) = :factory)
+              AND (
+                    CAST(:factory AS text) IS NULL
+                    OR UPPER(BTRIM(e."FACTORY"::text)) = CAST(:factory AS text)
+              )
         ),
         unique_man AS (
             SELECT d_l, MIN(man) AS man
@@ -90,7 +93,10 @@ def build_model_line_router(get_db):
         FROM public.teffdata e
         WHERE e."Date"::date BETWEEN :start_date AND :end_date
           AND NULLIF(BTRIM(e."Model Line"::text), '') IS NOT NULL
-          AND (:factory IS NULL OR UPPER(BTRIM(e."FACTORY"::text)) = :factory)
+          AND (
+                CAST(:factory AS text) IS NULL
+                OR UPPER(BTRIM(e."FACTORY"::text)) = CAST(:factory AS text)
+          )
         GROUP BY BTRIM(e."Model Line"::text)
         HAVING SUM(NULLIF(REGEXP_REPLACE(BTRIM(e."Min Input"::text), '[^0-9.-]', '', 'g'), '')::numeric) <> 0
         ORDER BY eff_pct DESC NULLS LAST, model_line
@@ -105,7 +111,10 @@ def build_model_line_router(get_db):
         FROM public.teffdata e
         WHERE e."Date"::date BETWEEN :start_date AND :end_date
           AND NULLIF(BTRIM(e."Model Line"::text), '') IS NOT NULL
-          AND (:factory IS NULL OR UPPER(BTRIM(e."FACTORY"::text)) = :factory)
+          AND (
+                CAST(:factory AS text) IS NULL
+                OR UPPER(BTRIM(e."FACTORY"::text)) = CAST(:factory AS text)
+          )
         GROUP BY COALESCE(NULLIF(BTRIM(e."PD_Type"::text), ''), 'UNKNOWN'), BTRIM(e."Model Line"::text)
         HAVING SUM(NULLIF(REGEXP_REPLACE(BTRIM(e."Min Input"::text), '[^0-9.-]', '', 'g'), '')::numeric) <> 0
         ORDER BY pd_type, model_line
@@ -125,7 +134,10 @@ def build_model_line_router(get_db):
             WHERE e."Date"::date BETWEEN :start_date AND :end_date
               AND NULLIF(BTRIM(e."Model Line"::text), '') IS NOT NULL
               AND NULLIF(BTRIM(e."Line"::text), '') IS NOT NULL
-              AND (:factory IS NULL OR UPPER(BTRIM(e."FACTORY"::text)) = :factory)
+              AND (
+                    CAST(:factory AS text) IS NULL
+                    OR UPPER(BTRIM(e."FACTORY"::text)) = CAST(:factory AS text)
+              )
         ),
         latest AS (
             SELECT MAX(produce_date) AS latest_date FROM prepared
@@ -153,7 +165,10 @@ def build_model_line_router(get_db):
         FROM public.teffdata e
         WHERE e."Date"::date BETWEEN :start_date AND :end_date
           AND NULLIF(BTRIM(e."Model Line"::text), '') IS NOT NULL
-          AND (:factory IS NULL OR UPPER(BTRIM(e."FACTORY"::text)) = :factory)
+          AND (
+                CAST(:factory AS text) IS NULL
+                OR UPPER(BTRIM(e."FACTORY"::text)) = CAST(:factory AS text)
+          )
         GROUP BY e."Date"::date, BTRIM(e."Model Line"::text)
         HAVING SUM(NULLIF(REGEXP_REPLACE(BTRIM(e."Min Input"::text), '[^0-9.-]', '', 'g'), '')::numeric) <> 0
         ORDER BY produce_date, model_line
