@@ -2,6 +2,7 @@
 
 /* Use more of the available viewport width instead of leaving large side gutters. */
 .nanyang-content .dashboard-main {
+  position: relative !important;
   width: 100% !important;
   max-width: none !important;
   margin: 0 !important;
@@ -9,15 +10,18 @@
   padding-right: 14px !important;
 }
 
-/* Remove the dedicated refresh-button column. */
+/* Remove the dedicated refresh-button column. Reserve a small area at the
+   far right for the refresh timestamp so it can sit on the SAME ROW as the
+   factory selector without overlapping EA. */
 .nanyang-content .dashboard-main > header {
   grid-template-columns:
     minmax(250px, .95fr)
     178px
     170px
     170px
-    minmax(560px, 2.25fr) !important;
+    minmax(560px, 1.75fr) !important;
   column-gap: 12px !important;
+  padding-right: 205px !important;
 }
 
 /* The user only wants the refresh timestamp, not the refresh button. */
@@ -25,10 +29,10 @@
   display: none !important;
 }
 
-/* Keep the status row compact and push REFRESH all the way to the right,
-   away from the EA factory tab. */
+/* Keep the normal left-side status indicators/filter selection underneath the
+   header, but pull only REFRESH up into the header row. */
 .nanyang-content .dashboard-main .status {
-  position: relative !important;
+  position: static !important;
   min-height: 20px !important;
   margin: 8px 0 12px !important;
   padding-right: 4px !important;
@@ -36,11 +40,16 @@
 
 .nanyang-content .dashboard-main .refresh-time {
   position: absolute !important;
-  right: 0 !important;
-  top: 0 !important;
+  right: 18px !important;
+  top: 52px !important;
   margin: 0 !important;
+  width: 175px !important;
   white-space: nowrap !important;
   text-align: right !important;
+  color: #6b7fa3 !important;
+  font-size: 10px !important;
+  line-height: 1 !important;
+  z-index: 5 !important;
 }
 
 /* Let both chart columns benefit from the additional width. */
@@ -62,17 +71,31 @@
       155px
       155px
       minmax(430px, 1fr) !important;
+    padding-right: 190px !important;
+  }
+
+  .nanyang-content .dashboard-main .refresh-time {
+    right: 12px !important;
+    width: 165px !important;
+  }
+}
+
+@media (max-width: 1180px) {
+  .nanyang-content .dashboard-main > header {
+    padding-right: 0 !important;
+  }
+
+  .nanyang-content .dashboard-main .refresh-time {
+    position: static !important;
+    display: block !important;
+    width: auto !important;
+    margin-left: auto !important;
+    text-align: right !important;
   }
 }
 
 @media (max-width: 1100px) {
   .nanyang-content .dashboard-main > header {
     grid-template-columns: 1fr !important;
-  }
-
-  .nanyang-content .dashboard-main .refresh-time {
-    position: static !important;
-    display: block !important;
-    margin-left: auto !important;
   }
 }
