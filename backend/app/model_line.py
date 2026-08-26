@@ -23,13 +23,34 @@ def build_model_line_router(get_db):
         }
 
     FILTERS_SQL = text(r'''
-        SELECT
-            MIN(e."Date"::date) AS min_date,
-            MAX(e."Date"::date) AS max_date,
-            ARRAY_AGG(DISTINCT UPPER(BTRIM(e."FACTORY"::text)) ORDER BY UPPER(BTRIM(e."FACTORY"::text)))
-                FILTER (WHERE NULLIF(BTRIM(e."FACTORY"::text), '') IS NOT NULL) AS factories
-        FROM public.teffdata e
-        WHERE NULLIF(BTRIM(e."Model Line"::text), '') IS NOT NULL
+        WITH date_bounds AS (
+            SELECT
+                MIN(e."Date"::date) AS min_date,
+                MAX(e."Date"::date) AS max_date
+            FROM public.teffdata e
+            WHERE NULLIF(BTRIM(e."Model Line"::text), '') IS NOT NULL
+        ),
+        factory_list AS (
+            SELECT ARRAY_AGG(factory ORDER BY
+                CASE factory
+                    WHEN 'G1' THEN 1
+                    WHEN 'G2' THEN 2
+                    WHEN 'G3' THEN 3
+                    WHEN 'G4' THEN 4
+                    WHEN 'TRM' THEN 5
+                    WHEN 'EA' THEN 6
+                    ELSE 99
+                END,
+                factory
+            ) AS factories
+            FROM (
+                SELECT DISTINCT UPPER(BTRIM(mf."FACTORY"::text)) AS factory
+                FROM public.mt_factory mf
+                WHERE NULLIF(BTRIM(mf."FACTORY"::text), '') IS NOT NULL
+            ) x
+        )
+        SELECT d.min_date, d.max_date, f.factories
+        FROM date_bounds d CROSS JOIN factory_list f
     ''')
 
     SUMMARY_SQL = text(r'''
