@@ -1,19 +1,44 @@
 """Nanyang backend package.
 
-The package initializer attaches dashboard modules that live directly in the
-Nanyang repository.  Existing VVIC and Easy Lean routes continue to be loaded
-by app.main exactly as before.
+Attach dashboard modules that live directly in the Nanyang repository while
+preserving the existing VVIC/Easy Lean application entry point.
 """
 
 
 def _register_model_line_router() -> None:
-    # app.main is the uvicorn entry point. Importing it here during package
-    # initialization is safe: Python caches the module, so uvicorn receives the
-    # same FastAPI instance after this registration completes.
+    from starlette.routing import Mount
+
     from . import main as main_module
     from .model_line import build_model_line_router
 
-    main_module.app.include_router(build_model_line_router(main_module.get_db))
+    app = main_module.app
+    before = list(app.router.routes)
+    before_ids = {id(route) for route in before}
+
+    app.include_router(build_model_line_router(main_module.get_db))
+
+    # app.main mounts the built frontend at '/'. Because a root Mount matches
+    # every path, API routes registered after it would never be reached in a
+    # production build. Move the newly-added Model-Line routes immediately
+    # before the root frontend mount.
+    all_routes = list(app.router.routes)
+    new_routes = [route for route in all_routes if id(route) not in before_ids]
+    existing_routes = [route for route in all_routes if id(route) in before_ids]
+
+    root_mount_index = next(
+        (
+            i
+            for i, route in enumerate(existing_routes)
+            if isinstance(route, Mount) and getattr(route, "path", None) == ""
+        ),
+        len(existing_routes),
+    )
+
+    app.router.routes = (
+        existing_routes[:root_mount_index]
+        + new_routes
+        + existing_routes[root_mount_index:]
+    )
 
 
 _register_model_line_router()
