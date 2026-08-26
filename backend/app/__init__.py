@@ -40,13 +40,15 @@ def _register_router(builder) -> None:
 
 
 def _register_nanyang_dashboards() -> None:
-    from .model_line import build_model_line_router
-    from .min_vs_eff import build_min_vs_eff_router
+    from .overview import build_overview_router
     from .overview02 import build_overview02_router
+    from .min_vs_eff import build_min_vs_eff_router
+    from .model_line import build_model_line_router
 
-    _register_router(build_model_line_router)
-    _register_router(build_min_vs_eff_router)
+    _register_router(build_overview_router)
     _register_router(build_overview02_router)
+    _register_router(build_min_vs_eff_router)
+    _register_router(build_model_line_router)
 
 
 _register_nanyang_dashboards()
