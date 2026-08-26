@@ -14,12 +14,14 @@ def build_min_vs_eff_router(get_db):
         if start_date > end_date:
             raise HTTPException(status_code=422, detail="start_date must be <= end_date")
 
-    def params(start_date: date, end_date: date, factory: str | None):
+    def params(start_date: date, end_date: date, factory: str | None, pd_type: str | None, customer: str | None):
         validate_dates(start_date, end_date)
         return {
             "start_date": start_date,
             "end_date": end_date,
             "factory": None if not factory or factory.upper() == "ALL" else factory.upper(),
+            "pd_type": None if not pd_type else pd_type.strip(),
+            "customer": None if not customer else customer.strip(),
         }
 
     DATE_EXPR = r'''CASE
@@ -82,39 +84,30 @@ def build_min_vs_eff_router(get_db):
                 {MIN_OUTPUT_EXPR} AS min_output,
                 {MIN_INPUT_EXPR} AS min_input
             FROM public.teffdata e
-            INNER JOIN factory_dim fd
-                ON fd.factory = UPPER(BTRIM(e."FACTORY"::text))
-            LEFT JOIN customer_dim cd
-                ON cd.cust_key = UPPER(BTRIM(e."Cust"::text))
+            INNER JOIN factory_dim fd ON fd.factory = UPPER(BTRIM(e."FACTORY"::text))
+            LEFT JOIN customer_dim cd ON cd.cust_key = UPPER(BTRIM(e."Cust"::text))
             WHERE {DATE_EXPR} BETWEEN :start_date AND :end_date
-              AND (
-                    CAST(:factory AS text) IS NULL
-                    OR fd.factory = CAST(:factory AS text)
-              )
+              AND (CAST(:factory AS text) IS NULL OR fd.factory = CAST(:factory AS text))
+              AND (CAST(:pd_type AS text) IS NULL OR COALESCE(NULLIF(BTRIM(e."PD_Type"::text), ''), 'UNKNOWN') = CAST(:pd_type AS text))
+              AND (CAST(:customer AS text) IS NULL OR cd.customer = CAST(:customer AS text))
         ),
         heatmap AS (
-            SELECT
-                factory,
-                pd_type,
-                SUM(min_output) AS min_produce,
-                SUM(min_output) / NULLIF(SUM(min_input), 0) AS eff_pct
+            SELECT factory, pd_type,
+                   SUM(min_output) AS min_produce,
+                   SUM(min_output) / NULLIF(SUM(min_input), 0) AS eff_pct
             FROM base
             WHERE pd_type <> 'UNKNOWN'
             GROUP BY factory, pd_type
             HAVING SUM(min_input) <> 0
         ),
         mtd AS (
-            SELECT *
-            FROM base
-            WHERE produce_date BETWEEN
-                GREATEST(:start_date, DATE_TRUNC('month', CAST(:end_date AS date))::date)
-                AND :end_date
+            SELECT * FROM base
+            WHERE produce_date BETWEEN GREATEST(:start_date, DATE_TRUNC('month', CAST(:end_date AS date))::date) AND :end_date
               AND customer IS NOT NULL
               AND NULLIF(BTRIM(customer_type), '') IS NOT NULL
         ),
         typed_mtd AS (
-            SELECT
-                *,
+            SELECT *,
                 CASE
                     WHEN REGEXP_REPLACE(customer_type, '[^A-Z]', '', 'g') = 'VVIC' THEN 'VVIC'
                     WHEN REGEXP_REPLACE(customer_type, '[^A-Z]', '', 'g') = 'NONVVIC' THEN 'NON-VVIC'
@@ -123,10 +116,8 @@ def build_min_vs_eff_router(get_db):
             FROM mtd
         ),
         customer_mtd AS (
-            SELECT
-                customer,
-                customer_group,
-                SUM(min_output) / NULLIF(SUM(min_input), 0) AS eff_pct
+            SELECT customer, customer_group,
+                   SUM(min_output) / NULLIF(SUM(min_input), 0) AS eff_pct
             FROM typed_mtd
             WHERE customer_group IS NOT NULL
             GROUP BY customer, customer_group
@@ -134,27 +125,16 @@ def build_min_vs_eff_router(get_db):
         )
         SELECT JSONB_BUILD_OBJECT(
             'heatmap', COALESCE((
-                SELECT JSONB_AGG(
-                    JSONB_BUILD_OBJECT(
-                        'factory', factory,
-                        'pd_type', pd_type,
-                        'min_produce', min_produce,
-                        'eff_pct', eff_pct
-                    )
-                    ORDER BY pd_type, factory
-                ) FROM heatmap
+                SELECT JSONB_AGG(JSONB_BUILD_OBJECT('factory', factory, 'pd_type', pd_type, 'min_produce', min_produce, 'eff_pct', eff_pct) ORDER BY pd_type, factory)
+                FROM heatmap
             ), '[]'::jsonb),
             'vvic', COALESCE((
-                SELECT JSONB_AGG(
-                    JSONB_BUILD_OBJECT('customer', customer, 'eff_pct', eff_pct)
-                    ORDER BY eff_pct DESC NULLS LAST, customer
-                ) FROM customer_mtd WHERE customer_group = 'VVIC'
+                SELECT JSONB_AGG(JSONB_BUILD_OBJECT('customer', customer, 'eff_pct', eff_pct) ORDER BY eff_pct DESC NULLS LAST, customer)
+                FROM customer_mtd WHERE customer_group = 'VVIC'
             ), '[]'::jsonb),
             'normal', COALESCE((
-                SELECT JSONB_AGG(
-                    JSONB_BUILD_OBJECT('customer', customer, 'eff_pct', eff_pct)
-                    ORDER BY eff_pct DESC NULLS LAST, customer
-                ) FROM customer_mtd WHERE customer_group = 'NON-VVIC'
+                SELECT JSONB_AGG(JSONB_BUILD_OBJECT('customer', customer, 'eff_pct', eff_pct) ORDER BY eff_pct DESC NULLS LAST, customer)
+                FROM customer_mtd WHERE customer_group = 'NON-VVIC'
             ), '[]'::jsonb)
         ) AS payload
     ''')
@@ -165,11 +145,7 @@ def build_min_vs_eff_router(get_db):
             row = db.execute(FILTERS_SQL).mappings().first()
             if not row:
                 return {"min_date": None, "max_date": None, "factories": []}
-            return {
-                "min_date": row["min_date"],
-                "max_date": row["max_date"],
-                "factories": [x for x in (row["factories"] or []) if x],
-            }
+            return {"min_date": row["min_date"], "max_date": row["max_date"], "factories": [x for x in (row["factories"] or []) if x]}
         except Exception as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -178,14 +154,14 @@ def build_min_vs_eff_router(get_db):
         start_date: date,
         end_date: date,
         factory: str | None = Query(default=None),
+        pd_type: str | None = Query(default=None),
+        customer: str | None = Query(default=None),
         db: Session = Depends(get_db),
     ):
-        p = params(start_date, end_date, factory)
+        p = params(start_date, end_date, factory, pd_type, customer)
         try:
             row = db.execute(DASHBOARD_SQL, p).mappings().first()
-            payload = dict(row["payload"]) if row and row["payload"] else {
-                "heatmap": [], "vvic": [], "normal": []
-            }
+            payload = dict(row["payload"]) if row and row["payload"] else {"heatmap": [], "vvic": [], "normal": []}
             payload["last_refresh"] = datetime.now().astimezone()
             return payload
         except Exception as exc:
