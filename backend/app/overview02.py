@@ -14,12 +14,14 @@ def build_overview02_router(get_db):
         if start_date > end_date:
             raise HTTPException(status_code=422, detail="start_date must be <= end_date")
 
-    def params(start_date: date, end_date: date, factory: str | None):
+    def params(start_date: date, end_date: date, factory: str | None, gmt_type: str | None, brand_name: str | None):
         validate_dates(start_date, end_date)
         return {
             "start_date": start_date,
             "end_date": end_date,
             "factory": None if not factory or factory.upper() == "ALL" else factory.upper(),
+            "gmt_type": None if not gmt_type else gmt_type.strip(),
+            "brand_name": None if not brand_name else brand_name.strip(),
         }
 
     DATE_EXPR = r'''CASE
@@ -92,146 +94,80 @@ def build_overview02_router(get_db):
                 {OUTPUT_PCS} AS output_pcs,
                 {MAN} AS man
             FROM public.teffdata e
-            INNER JOIN factory_dim fd
-              ON fd.factory = UPPER(BTRIM(e."FACTORY"::text))
-            LEFT JOIN customer_dim cd
-              ON cd.cust_key = UPPER(BTRIM(e."Cust"::text))
-            LEFT JOIN so_dim sd
-              ON sd.so_key = UPPER(BTRIM(e."# SO 8digit"::text))
+            INNER JOIN factory_dim fd ON fd.factory = UPPER(BTRIM(e."FACTORY"::text))
+            LEFT JOIN customer_dim cd ON cd.cust_key = UPPER(BTRIM(e."Cust"::text))
+            LEFT JOIN so_dim sd ON sd.so_key = UPPER(BTRIM(e."# SO 8digit"::text))
             WHERE {DATE_EXPR} BETWEEN :start_date AND :end_date
-              AND (
-                    CAST(:factory AS text) IS NULL
-                    OR fd.factory = CAST(:factory AS text)
-              )
+              AND (CAST(:factory AS text) IS NULL OR fd.factory = CAST(:factory AS text))
+              AND (CAST(:gmt_type AS text) IS NULL OR sd.gmt_type = CAST(:gmt_type AS text))
+              AND (CAST(:brand_name AS text) IS NULL OR cd.brand_name = CAST(:brand_name AS text))
         ),
         daily_factory AS (
-            SELECT
-                produce_date,
-                factory,
-                SUM(min_output) / NULLIF(SUM(min_input), 0) AS eff_pct
+            SELECT produce_date, factory,
+                   SUM(min_output) / NULLIF(SUM(min_input), 0) AS eff_pct
             FROM base
             GROUP BY produce_date, factory
             HAVING SUM(min_input) <> 0
         ),
         mtd AS (
-            SELECT *
-            FROM base
-            WHERE produce_date BETWEEN
-                GREATEST(:start_date, DATE_TRUNC('month', CAST(:end_date AS date))::date)
-                AND :end_date
+            SELECT * FROM base
+            WHERE produce_date BETWEEN GREATEST(:start_date, DATE_TRUNC('month', CAST(:end_date AS date))::date) AND :end_date
         ),
         vv_product_base AS (
-            SELECT * FROM mtd
-            WHERE customer_type = 'VVIC'
-              AND gmt_type IS NOT NULL
+            SELECT * FROM mtd WHERE customer_type = 'VVIC' AND gmt_type IS NOT NULL
         ),
         vv_product_unique_man AS (
-            SELECT gmt_type, d_l, MIN(man) AS man
-            FROM vv_product_base
-            WHERE d_l IS NOT NULL
-            GROUP BY gmt_type, d_l
+            SELECT gmt_type, d_l, MIN(man) AS man FROM vv_product_base
+            WHERE d_l IS NOT NULL GROUP BY gmt_type, d_l
         ),
         vv_product_agg AS (
-            SELECT
-                gmt_type,
-                SUM(min_output) / NULLIF(SUM(min_input), 0) AS eff_pct,
-                SUM(min_input) AS sum_inmin,
-                SUM(output_pcs) AS sum_pcs
-            FROM vv_product_base
-            GROUP BY gmt_type
-            HAVING SUM(min_input) <> 0
+            SELECT gmt_type,
+                   SUM(min_output) / NULLIF(SUM(min_input), 0) AS eff_pct,
+                   SUM(min_input) AS sum_inmin, SUM(output_pcs) AS sum_pcs
+            FROM vv_product_base GROUP BY gmt_type HAVING SUM(min_input) <> 0
         ),
         vv_product_man AS (
-            SELECT gmt_type, SUM(man) AS sum_unique_man
-            FROM vv_product_unique_man
-            GROUP BY gmt_type
+            SELECT gmt_type, SUM(man) AS sum_unique_man FROM vv_product_unique_man GROUP BY gmt_type
         ),
         vv_product AS (
-            SELECT
-                a.gmt_type,
-                a.eff_pct,
-                CASE
-                    WHEN m.sum_unique_man IS NULL OR m.sum_unique_man = 0 OR a.sum_inmin IS NULL OR a.sum_inmin = 0 THEN NULL
-                    ELSE (a.sum_pcs / NULLIF((a.sum_inmin / m.sum_unique_man) / 60.0, 0)) / NULLIF(m.sum_unique_man, 0)
-                END AS pph
-            FROM vv_product_agg a
-            LEFT JOIN vv_product_man m USING (gmt_type)
+            SELECT a.gmt_type, a.eff_pct,
+                   CASE WHEN m.sum_unique_man IS NULL OR m.sum_unique_man = 0 OR a.sum_inmin IS NULL OR a.sum_inmin = 0 THEN NULL
+                        ELSE (a.sum_pcs / NULLIF((a.sum_inmin / m.sum_unique_man) / 60.0, 0)) / NULLIF(m.sum_unique_man, 0) END AS pph
+            FROM vv_product_agg a LEFT JOIN vv_product_man m USING (gmt_type)
         ),
         vv_customer_base AS (
-            SELECT * FROM mtd
-            WHERE customer_type = 'VVIC'
-              AND brand_name IS NOT NULL
+            SELECT * FROM mtd WHERE customer_type = 'VVIC' AND brand_name IS NOT NULL
         ),
         vv_customer_unique_man AS (
-            SELECT brand_name, d_l, MIN(man) AS man
-            FROM vv_customer_base
-            WHERE d_l IS NOT NULL
-            GROUP BY brand_name, d_l
+            SELECT brand_name, d_l, MIN(man) AS man FROM vv_customer_base
+            WHERE d_l IS NOT NULL GROUP BY brand_name, d_l
         ),
         vv_customer_agg AS (
-            SELECT
-                brand_name,
-                SUM(min_output) / NULLIF(SUM(min_input), 0) AS eff_pct,
-                SUM(min_input) AS sum_inmin,
-                SUM(output_pcs) AS sum_pcs
-            FROM vv_customer_base
-            GROUP BY brand_name
-            HAVING SUM(min_input) <> 0
+            SELECT brand_name,
+                   SUM(min_output) / NULLIF(SUM(min_input), 0) AS eff_pct,
+                   SUM(min_input) AS sum_inmin, SUM(output_pcs) AS sum_pcs
+            FROM vv_customer_base GROUP BY brand_name HAVING SUM(min_input) <> 0
         ),
         vv_customer_man AS (
-            SELECT brand_name, SUM(man) AS sum_unique_man
-            FROM vv_customer_unique_man
-            GROUP BY brand_name
+            SELECT brand_name, SUM(man) AS sum_unique_man FROM vv_customer_unique_man GROUP BY brand_name
         ),
         vv_customer AS (
-            SELECT
-                a.brand_name,
-                a.eff_pct,
-                CASE
-                    WHEN m.sum_unique_man IS NULL OR m.sum_unique_man = 0 OR a.sum_inmin IS NULL OR a.sum_inmin = 0 THEN NULL
-                    ELSE (a.sum_pcs / NULLIF((a.sum_inmin / m.sum_unique_man) / 60.0, 0)) / NULLIF(m.sum_unique_man, 0)
-                END AS pph
-            FROM vv_customer_agg a
-            LEFT JOIN vv_customer_man m USING (brand_name)
+            SELECT a.brand_name, a.eff_pct,
+                   CASE WHEN m.sum_unique_man IS NULL OR m.sum_unique_man = 0 OR a.sum_inmin IS NULL OR a.sum_inmin = 0 THEN NULL
+                        ELSE (a.sum_pcs / NULLIF((a.sum_inmin / m.sum_unique_man) / 60.0, 0)) / NULLIF(m.sum_unique_man, 0) END AS pph
+            FROM vv_customer_agg a LEFT JOIN vv_customer_man m USING (brand_name)
         ),
         non_vvic AS (
-            SELECT
-                brand_name,
-                SUM(min_output) / NULLIF(SUM(min_input), 0) AS eff_pct
+            SELECT brand_name, SUM(min_output) / NULLIF(SUM(min_input), 0) AS eff_pct
             FROM mtd
-            WHERE customer_type = 'NON-VVIC'
-              AND brand_name IS NOT NULL
-            GROUP BY brand_name
-            HAVING SUM(min_input) <> 0
+            WHERE customer_type = 'NON-VVIC' AND brand_name IS NOT NULL
+            GROUP BY brand_name HAVING SUM(min_input) <> 0
         )
         SELECT JSONB_BUILD_OBJECT(
-            'daily_factory', COALESCE((
-                SELECT JSONB_AGG(
-                    JSONB_BUILD_OBJECT(
-                        'produce_date', produce_date,
-                        'factory', factory,
-                        'eff_pct', eff_pct
-                    ) ORDER BY produce_date, factory
-                ) FROM daily_factory
-            ), '[]'::jsonb),
-            'vvic_product', COALESCE((
-                SELECT JSONB_AGG(
-                    JSONB_BUILD_OBJECT('gmt_type', gmt_type, 'eff_pct', eff_pct, 'pph', pph)
-                    ORDER BY eff_pct DESC NULLS LAST, gmt_type
-                ) FROM vv_product
-            ), '[]'::jsonb),
-            'vvic_customer', COALESCE((
-                SELECT JSONB_AGG(
-                    JSONB_BUILD_OBJECT('brand_name', brand_name, 'eff_pct', eff_pct, 'pph', pph)
-                    ORDER BY eff_pct DESC NULLS LAST, brand_name
-                ) FROM vv_customer
-            ), '[]'::jsonb),
-            'non_vvic_customer', COALESCE((
-                SELECT JSONB_AGG(
-                    JSONB_BUILD_OBJECT('brand_name', brand_name, 'eff_pct', eff_pct)
-                    ORDER BY eff_pct DESC NULLS LAST, brand_name
-                ) FROM non_vvic
-            ), '[]'::jsonb)
+            'daily_factory', COALESCE((SELECT JSONB_AGG(JSONB_BUILD_OBJECT('produce_date', produce_date, 'factory', factory, 'eff_pct', eff_pct) ORDER BY produce_date, factory) FROM daily_factory), '[]'::jsonb),
+            'vvic_product', COALESCE((SELECT JSONB_AGG(JSONB_BUILD_OBJECT('gmt_type', gmt_type, 'eff_pct', eff_pct, 'pph', pph) ORDER BY eff_pct DESC NULLS LAST, gmt_type) FROM vv_product), '[]'::jsonb),
+            'vvic_customer', COALESCE((SELECT JSONB_AGG(JSONB_BUILD_OBJECT('brand_name', brand_name, 'eff_pct', eff_pct, 'pph', pph) ORDER BY eff_pct DESC NULLS LAST, brand_name) FROM vv_customer), '[]'::jsonb),
+            'non_vvic_customer', COALESCE((SELECT JSONB_AGG(JSONB_BUILD_OBJECT('brand_name', brand_name, 'eff_pct', eff_pct) ORDER BY eff_pct DESC NULLS LAST, brand_name) FROM non_vvic), '[]'::jsonb)
         ) AS payload
     ''')
 
@@ -239,11 +175,7 @@ def build_overview02_router(get_db):
     def filters(db: Session = Depends(get_db)):
         try:
             row = db.execute(FILTERS_SQL).mappings().first()
-            return {
-                "min_date": row["min_date"] if row else None,
-                "max_date": row["max_date"] if row else None,
-                "factories": [x for x in ((row["factories"] if row else None) or []) if x],
-            }
+            return {"min_date": row["min_date"] if row else None, "max_date": row["max_date"] if row else None, "factories": [x for x in ((row["factories"] if row else None) or []) if x]}
         except Exception as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -252,17 +184,14 @@ def build_overview02_router(get_db):
         start_date: date,
         end_date: date,
         factory: str | None = Query(default=None),
+        gmt_type: str | None = Query(default=None),
+        brand_name: str | None = Query(default=None),
         db: Session = Depends(get_db),
     ):
-        p = params(start_date, end_date, factory)
+        p = params(start_date, end_date, factory, gmt_type, brand_name)
         try:
             row = db.execute(DASHBOARD_SQL, p).mappings().first()
-            payload = dict(row["payload"]) if row and row["payload"] else {
-                "daily_factory": [],
-                "vvic_product": [],
-                "vvic_customer": [],
-                "non_vvic_customer": [],
-            }
+            payload = dict(row["payload"]) if row and row["payload"] else {"daily_factory": [], "vvic_product": [], "vvic_customer": [], "non_vvic_customer": []}
             payload["last_refresh"] = datetime.now().astimezone()
             return payload
         except Exception as exc:
