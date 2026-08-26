@@ -5,6 +5,7 @@ import "../../apps/vvic/frontend/src/index.css";
 import "../../apps/vvic/frontend/src/interactions.css";
 import "../../apps/easy-lean/frontend/src/styles.css";
 import "./shell.css";
+import "./vvic-overrides.css";
 import "./easy-lean-overrides.css";
 import "./easy-lean-title-position.css";
 
