@@ -143,40 +143,32 @@ def details(page: int = 1, page_size: int = Query(50, le=200)):
     return {"items": [], "page": page, "page_size": page_size, "total": 0}
 
 
-# EFF Last date by Line:
-# - line key = teffdata."EasyLean Line" for every factory, including EA
-# - Easy Lean factory key = teffdata."EasyLean Fac" when present,
-#   otherwise fall back to teffdata."FACTORY"
-# - latest date is calculated independently per EasyLean Line
-# - Product Type tooltip = teffdata."PD_Type"
+# EFF Last date by Line follows the Power BI relationship:
+#   teffdata.FACTORY (*:1) mt_factory.FACTORY
+# Factory comes from mt_factory, while Date, EasyLean Line, Min Output,
+# Min Input and PD_Type come from teffdata.
+# Latest date is calculated independently for each EasyLean Line.
 EASY_LATEST_BY_LINE_SQL = text(r'''
 WITH prepared AS (
     SELECT
-        COALESCE(
-            NULLIF(BTRIM(e."EasyLean Fac"::text), ''),
-            NULLIF(BTRIM(e."FACTORY"::text), '')
-        ) AS factory,
+        NULLIF(BTRIM(mf."FACTORY"::text), '') AS factory,
         e."Date"::date AS produce_date,
         NULLIF(BTRIM(e."EasyLean Line"::text), '') AS display_line,
         COALESCE(NULLIF(BTRIM(e."PD_Type"::text), ''), 'UNKNOWN') AS product_type,
         NULLIF(REPLACE(BTRIM(e."Min Output"::text), ',', ''), '')::numeric AS min_output_num,
         NULLIF(REPLACE(BTRIM(e."Min Input"::text), ',', ''), '')::numeric AS min_input_num
     FROM public.teffdata e
+    INNER JOIN public.mt_factory mf
+        ON BTRIM(e."FACTORY"::text) = BTRIM(mf."FACTORY"::text)
     WHERE
         e."Date"::date BETWEEN :start_date AND :end_date
         AND (
             CAST(:factory AS text) IS NULL
-            OR COALESCE(
-                NULLIF(BTRIM(e."EasyLean Fac"::text), ''),
-                NULLIF(BTRIM(e."FACTORY"::text), '')
-            ) = CAST(:factory AS text)
+            OR BTRIM(mf."FACTORY"::text) = CAST(:factory AS text)
         )
         AND (
             CAST(:selected_factory AS text) IS NULL
-            OR COALESCE(
-                NULLIF(BTRIM(e."EasyLean Fac"::text), ''),
-                NULLIF(BTRIM(e."FACTORY"::text), '')
-            ) = CAST(:selected_factory AS text)
+            OR BTRIM(mf."FACTORY"::text) = CAST(:selected_factory AS text)
         )
         AND (
             CAST(:selected_line AS text) IS NULL
@@ -184,15 +176,9 @@ WITH prepared AS (
         )
         AND (
             CAST(:selected_line_factory AS text) IS NULL
-            OR COALESCE(
-                NULLIF(BTRIM(e."EasyLean Fac"::text), ''),
-                NULLIF(BTRIM(e."FACTORY"::text), '')
-            ) = CAST(:selected_line_factory AS text)
+            OR BTRIM(mf."FACTORY"::text) = CAST(:selected_line_factory AS text)
         )
-        AND COALESCE(
-            NULLIF(BTRIM(e."EasyLean Fac"::text), ''),
-            NULLIF(BTRIM(e."FACTORY"::text), '')
-        ) IS NOT NULL
+        AND NULLIF(BTRIM(mf."FACTORY"::text), '') IS NOT NULL
         AND NULLIF(BTRIM(e."EasyLean Line"::text), '') IS NOT NULL
 ),
 latest_by_line AS (
