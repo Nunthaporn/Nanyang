@@ -5,17 +5,16 @@ preserving the existing VVIC/Easy Lean application entry point.
 """
 
 
-def _register_model_line_router() -> None:
+def _register_router(builder) -> None:
     from starlette.routing import Mount
 
     from . import main as main_module
-    from .model_line import build_model_line_router
 
     app = main_module.app
     before = list(app.router.routes)
     before_ids = {id(route) for route in before}
 
-    app.include_router(build_model_line_router(main_module.get_db))
+    app.include_router(builder(main_module.get_db))
 
     # app.main may mount the production frontend at '/'. A root Mount matches
     # every path, so routes added after it must be moved in front of that mount.
@@ -40,4 +39,12 @@ def _register_model_line_router() -> None:
     )
 
 
-_register_model_line_router()
+def _register_nanyang_dashboards() -> None:
+    from .model_line import build_model_line_router
+    from .min_vs_eff import build_min_vs_eff_router
+
+    _register_router(build_model_line_router)
+    _register_router(build_min_vs_eff_router)
+
+
+_register_nanyang_dashboards()
