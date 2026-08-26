@@ -27,7 +27,7 @@ type DashboardData = {
   last_refresh: string;
 };
 
-const FACTORY_ORDER = ["EA", "G1", "G2", "G3", "G4", "TRM"];
+const FACTORY_ORDER = ["G1", "G2", "G3", "G4", "TRM", "EA"];
 const PRODUCT_ORDER = [
   "GLO", "HOME", "BOTTB", "ACC", "ELAST", "SHIRT",
   "UNDER", "OVS", "OTHER", "BOTTC", "POL", "JKT",
