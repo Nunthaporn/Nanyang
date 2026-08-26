@@ -64,52 +64,55 @@ def build_overview_router(get_db):
             GROUP BY 1,2
         ),
         bounds AS (
-            SELECT CAST(:start_date AS date) selected_start, CAST(:end_date AS date) selected_end,
-                   GREATEST(CAST(:start_date AS date), DATE_TRUNC('year', CAST(:end_date AS date))::date) ytd_start,
-                   GREATEST(CAST(:start_date AS date), DATE_TRUNC('quarter', CAST(:end_date AS date))::date) qtd_start,
-                   GREATEST(CAST(:start_date AS date), DATE_TRUNC('month', CAST(:end_date AS date))::date) mtd_start
+            SELECT CAST(:start_date AS date) AS selected_start, CAST(:end_date AS date) AS selected_end,
+                   GREATEST(CAST(:start_date AS date), DATE_TRUNC('year', CAST(:end_date AS date))::date) AS ytd_start,
+                   GREATEST(CAST(:start_date AS date), DATE_TRUNC('quarter', CAST(:end_date AS date))::date) AS qtd_start,
+                   GREATEST(CAST(:start_date AS date), DATE_TRUNC('month', CAST(:end_date AS date))::date) AS mtd_start
         ),
-        latest_date AS (SELECT MAX(produce_date) ld FROM base),
+        latest_date AS (SELECT MAX(produce_date) AS ld FROM base),
         period_bounds AS (
-            SELECT 'YTD' period, ytd_start p_start, selected_end p_end FROM bounds UNION ALL
+            SELECT 'YTD' AS period, ytd_start AS p_start, selected_end AS p_end FROM bounds UNION ALL
             SELECT 'QTD', qtd_start, selected_end FROM bounds UNION ALL
             SELECT 'MTD', mtd_start, selected_end FROM bounds UNION ALL
             SELECT 'LD', ld, ld FROM latest_date
         ),
         period_teff AS (
-            SELECT p.period, SUM(b.min_output) sum_outmin, SUM(b.min_input) sum_inmin, SUM(b.output_pcs) sum_pcs
+            SELECT p.period, SUM(b.min_output) AS sum_outmin, SUM(b.min_input) AS sum_inmin, SUM(b.output_pcs) AS sum_pcs
             FROM period_bounds p LEFT JOIN base b ON b.produce_date BETWEEN p.p_start AND p.p_end GROUP BY p.period
         ),
         period_mgr AS (
-            SELECT p.period, SUM(m.plan_mgr) sum_mgr
+            SELECT p.period, SUM(m.plan_mgr) AS sum_mgr
             FROM period_bounds p LEFT JOIN mgr m ON m.mgr_date BETWEEN p.p_start AND p.p_end GROUP BY p.period
         ),
         overall_periods AS (
             SELECT t.period,
-                   t.sum_outmin / NULLIF(t.sum_inmin,0) eff_pct,
-                   t.sum_outmin min_produce,
-                   t.sum_outmin / NULLIF(m.sum_mgr,0) ptp_pct,
-                   (t.sum_pcs * 60.0) / NULLIF(t.sum_inmin,0) pph
+                   t.sum_outmin / NULLIF(t.sum_inmin,0) AS eff_pct,
+                   t.sum_outmin AS min_produce,
+                   t.sum_outmin / NULLIF(m.sum_mgr,0) AS ptp_pct,
+                   (t.sum_pcs * 60.0) / NULLIF(t.sum_inmin,0) AS pph
             FROM period_teff t LEFT JOIN period_mgr m USING(period)
         ),
         factory_periods AS (
-            SELECT p.period, b.factory, SUM(b.min_output)/NULLIF(SUM(b.min_input),0) eff_pct
+            SELECT p.period, b.factory, SUM(b.min_output)/NULLIF(SUM(b.min_input),0) AS eff_pct
             FROM period_bounds p JOIN base b ON b.produce_date BETWEEN p.p_start AND p.p_end
             GROUP BY p.period,b.factory
         ),
         monthly AS (
-            SELECT DATE_TRUNC('month',produce_date)::date month, SUM(min_output)/NULLIF(SUM(min_input),0) eff_pct
-            FROM base GROUP BY 1 HAVING SUM(min_input)<>0
+            SELECT DATE_TRUNC('month',produce_date)::date AS month_date,
+                   SUM(min_output)/NULLIF(SUM(min_input),0) AS eff_pct
+            FROM base GROUP BY DATE_TRUNC('month',produce_date)::date HAVING SUM(min_input)<>0
         ),
         last30 AS (
-            SELECT produce_date, SUM(min_output)/NULLIF(SUM(min_input),0) eff_pct
+            SELECT produce_date, SUM(min_output)/NULLIF(SUM(min_input),0) AS eff_pct
             FROM base CROSS JOIN bounds
             WHERE produce_date BETWEEN GREATEST(selected_start,selected_end-29) AND selected_end
             GROUP BY produce_date HAVING SUM(min_input)<>0
         ),
         factory_monthly AS (
-            SELECT DATE_TRUNC('month',produce_date)::date month,factory,SUM(min_output)/NULLIF(SUM(min_input),0) eff_pct
-            FROM base GROUP BY 1,2 HAVING SUM(min_input)<>0
+            SELECT DATE_TRUNC('month',produce_date)::date AS month_date,
+                   factory,
+                   SUM(min_output)/NULLIF(SUM(min_input),0) AS eff_pct
+            FROM base GROUP BY DATE_TRUNC('month',produce_date)::date, factory HAVING SUM(min_input)<>0
         )
         SELECT JSONB_BUILD_OBJECT(
             'kpis', COALESCE((SELECT JSONB_OBJECT_AGG(period,eff_pct) FROM overall_periods),'{{}}'::jsonb),
@@ -117,11 +120,11 @@ def build_overview_router(get_db):
                 'eff_pct',eff_pct,'min_produce',min_produce,'ptp_pct',ptp_pct,'pph',pph)) FROM overall_periods),'{{}}'::jsonb),
             'factory_periods', COALESCE((SELECT JSONB_AGG(JSONB_BUILD_OBJECT('period',period,'factory',factory,'eff_pct',eff_pct)
                 ORDER BY CASE period WHEN 'YTD' THEN 1 WHEN 'QTD' THEN 2 WHEN 'MTD' THEN 3 ELSE 4 END,eff_pct DESC NULLS LAST,factory) FROM factory_periods),'[]'::jsonb),
-            'monthly', COALESCE((SELECT JSONB_AGG(JSONB_BUILD_OBJECT('month',month,'eff_pct',eff_pct) ORDER BY month) FROM monthly),'[]'::jsonb),
+            'monthly', COALESCE((SELECT JSONB_AGG(JSONB_BUILD_OBJECT('month',month_date,'eff_pct',eff_pct) ORDER BY month_date) FROM monthly),'[]'::jsonb),
             'last30', COALESCE((SELECT JSONB_AGG(JSONB_BUILD_OBJECT('produce_date',produce_date,'eff_pct',eff_pct) ORDER BY produce_date) FROM last30),'[]'::jsonb),
-            'factory_monthly', COALESCE((SELECT JSONB_AGG(JSONB_BUILD_OBJECT('month',month,'factory',factory,'eff_pct',eff_pct) ORDER BY month,factory) FROM factory_monthly),'[]'::jsonb),
+            'factory_monthly', COALESCE((SELECT JSONB_AGG(JSONB_BUILD_OBJECT('month',month_date,'factory',factory,'eff_pct',eff_pct) ORDER BY month_date,factory) FROM factory_monthly),'[]'::jsonb),
             'latest_date',(SELECT ld FROM latest_date)
-        ) payload
+        ) AS payload
     ''')
 
     @router.get("/filters")
