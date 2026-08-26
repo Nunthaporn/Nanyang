@@ -9,8 +9,6 @@
   background: #eef3f7 !important;
 }
 
-/* Current Easy Lean component uses .topbar (older builds used .easy-topbar).
-   Support both so future submodule updates do not revert the unified layout. */
 .nanyang-content > main.page > .topbar,
 .nanyang-content > main.page > .easy-topbar {
   margin: 0 !important;
@@ -25,7 +23,6 @@
   border: 0 !important;
 }
 
-/* Title */
 .nanyang-content > main.page > .topbar h1,
 .nanyang-content > main.page .easy-title-wrap h1 {
   margin: 0 !important;
@@ -43,8 +40,6 @@
   align-self: center !important;
 }
 
-/* Date fields: reproduce the VVIC labelled-card look even though the Easy Lean
-   component currently renders the two native date inputs directly. */
 .nanyang-content > main.page > .topbar .date-group {
   position: relative !important;
   display: grid !important;
@@ -66,15 +61,8 @@
   letter-spacing: .11em;
 }
 
-.nanyang-content > main.page > .topbar .date-group::before {
-  content: "START DATE";
-  left: 14px;
-}
-
-.nanyang-content > main.page > .topbar .date-group::after {
-  content: "END DATE";
-  left: calc(50% + 20px);
-}
+.nanyang-content > main.page > .topbar .date-group::before { content: "START DATE"; left: 14px; }
+.nanyang-content > main.page > .topbar .date-group::after { content: "END DATE"; left: calc(50% + 20px); }
 
 .nanyang-content > main.page > .topbar .date-group input {
   width: 100% !important;
@@ -90,7 +78,6 @@
   box-shadow: none !important;
 }
 
-/* Factory selector: same pale-blue segmented control used by VVIC. */
 .nanyang-content > main.page > .topbar .tabs {
   display: flex !important;
   align-items: stretch !important;
@@ -123,59 +110,60 @@
   box-shadow: 0 1px 4px rgba(48, 78, 120, .14) !important;
 }
 
-/* Refresh information sits cleanly at the far right instead of stretching the
-   whole header vertically. */
+/* Match VVIC: show only one compact refresh timestamp. The component still
+   keeps DB status internally; it is simply not rendered in this unified header. */
 .nanyang-content > main.page > .topbar .refresh {
   min-width: 0 !important;
-  align-self: center !important;
+  align-self: end !important;
   text-align: right !important;
   display: flex !important;
   flex-direction: column !important;
-  justify-content: center !important;
-  gap: 2px !important;
-  color: #66758b !important;
+  justify-content: flex-end !important;
+  gap: 0 !important;
+  padding: 0 2px 2px 0 !important;
 }
 
 .nanyang-content > main.page > .topbar .refresh strong {
-  color: #172033 !important;
-  font-size: 13px !important;
-  font-weight: 600 !important;
+  color: transparent !important;
+  font-size: 0 !important;
+  font-weight: 500 !important;
   white-space: nowrap;
 }
 
-.nanyang-content > main.page > .topbar .refresh small {
-  color: #7b8da8 !important;
+.nanyang-content > main.page > .topbar .refresh strong::before {
+  content: "REFRESH: ";
+  color: #6b7fa3 !important;
   font-size: 10px !important;
-  text-transform: uppercase;
-  letter-spacing: .04em;
+  font-weight: 500 !important;
 }
 
+.nanyang-content > main.page > .topbar .refresh strong::after {
+  content: attr(data-refresh-label);
+  color: #6b7fa3 !important;
+  font-size: 10px !important;
+  font-weight: 500 !important;
+}
+
+/* The actual timestamp text remains available as a fallback. JS-created text
+   is exposed by making strong itself visible when no data attribute is set. */
+.nanyang-content > main.page > .topbar .refresh strong:not([data-refresh-label]) {
+  color: #6b7fa3 !important;
+  font-size: 10px !important;
+}
+
+.nanyang-content > main.page > .topbar .refresh strong:not([data-refresh-label])::before {
+  content: "REFRESH: ";
+}
+
+.nanyang-content > main.page > .topbar .refresh small,
 .nanyang-content > main.page > .topbar .refresh .status {
-  margin-top: 2px !important;
-  font-size: 10px !important;
+  display: none !important;
 }
 
-/* Older unified markup support. */
-.nanyang-content > main.page .easy-controls-wrap {
-  margin-top: 0 !important;
-  padding-top: 0 !important;
-  gap: 4px !important;
-}
+.nanyang-content > main.page .easy-controls-wrap { margin-top: 0 !important; padding-top: 0 !important; gap: 4px !important; }
+.nanyang-content > main.page .easy-controls-row { margin: 0 !important; padding: 0 !important; align-items: center !important; }
+.nanyang-content > main.page .easy-refresh-row { margin: 0 !important; padding: 0 2px 0 0 !important; min-height: 12px !important; gap: 12px !important; }
 
-.nanyang-content > main.page .easy-controls-row {
-  margin: 0 !important;
-  padding: 0 !important;
-  align-items: center !important;
-}
-
-.nanyang-content > main.page .easy-refresh-row {
-  margin: 0 !important;
-  padding: 0 2px 0 0 !important;
-  min-height: 12px !important;
-  gap: 12px !important;
-}
-
-/* Restore deliberate breathing room between the filter/header row and KPI card. */
 .nanyang-content > main.page > .dashboard {
   margin: 14px 28px 26px !important;
   padding: 0 !important;
@@ -191,10 +179,7 @@
     padding: 16px 20px 4px !important;
     grid-template-columns: minmax(260px, 1fr) 330px minmax(430px, 1.45fr) 170px !important;
   }
-
-  .nanyang-content > main.page > .dashboard {
-    margin: 12px 20px 24px !important;
-  }
+  .nanyang-content > main.page > .dashboard { margin: 12px 20px 24px !important; }
 }
 
 @media (max-width: 1180px) {
@@ -204,32 +189,14 @@
     grid-template-columns: 1fr !important;
     align-items: stretch !important;
   }
-
-  .nanyang-content > main.page > .topbar .refresh {
-    text-align: left !important;
-  }
+  .nanyang-content > main.page > .topbar .refresh { text-align: left !important; align-self: start !important; }
 }
 
 @media (max-width: 650px) {
   .nanyang-content > main.page > .topbar,
-  .nanyang-content > main.page > .easy-topbar {
-    padding: 12px !important;
-  }
-
-  .nanyang-content > main.page > .topbar .date-group {
-    grid-template-columns: 1fr !important;
-  }
-
-  .nanyang-content > main.page > .topbar .date-group::after {
-    display: none;
-  }
-
-  .nanyang-content > main.page > .topbar .tabs {
-    flex-wrap: wrap !important;
-    height: auto !important;
-  }
-
-  .nanyang-content > main.page > .dashboard {
-    margin: 10px 12px 16px !important;
-  }
+  .nanyang-content > main.page > .easy-topbar { padding: 12px !important; }
+  .nanyang-content > main.page > .topbar .date-group { grid-template-columns: 1fr !important; }
+  .nanyang-content > main.page > .topbar .date-group::after { display: none; }
+  .nanyang-content > main.page > .topbar .tabs { flex-wrap: wrap !important; height: auto !important; }
+  .nanyang-content > main.page > .dashboard { margin: 10px 12px 16px !important; }
 }
