@@ -17,10 +17,8 @@ def _register_model_line_router() -> None:
 
     app.include_router(build_model_line_router(main_module.get_db))
 
-    # app.main mounts the built frontend at '/'. Because a root Mount matches
-    # every path, API routes registered after it would never be reached in a
-    # production build. Move the newly-added Model-Line routes immediately
-    # before the root frontend mount.
+    # app.main may mount the production frontend at '/'. A root Mount matches
+    # every path, so routes added after it must be moved in front of that mount.
     all_routes = list(app.router.routes)
     new_routes = [route for route in all_routes if id(route) not in before_ids]
     existing_routes = [route for route in all_routes if id(route) in before_ids]
@@ -29,7 +27,8 @@ def _register_model_line_router() -> None:
         (
             i
             for i, route in enumerate(existing_routes)
-            if isinstance(route, Mount) and getattr(route, "path", None) == ""
+            if isinstance(route, Mount)
+            and getattr(route, "path", None) in ("", "/")
         ),
         len(existing_routes),
     )
