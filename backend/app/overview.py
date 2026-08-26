@@ -24,6 +24,12 @@ def build_overview_router(get_db):
         WHEN BTRIM(e."Date"::text) ~ '^\d{4}-\d{2}-\d{2}' THEN LEFT(BTRIM(e."Date"::text), 10)::date
         ELSE NULL END'''
 
+    MGR_DATE_EXPR = r'''CASE
+        WHEN NULLIF(BTRIM("Date"::text), '') IS NULL THEN NULL
+        WHEN BTRIM("Date"::text) ~ '^[0-9]+$' THEN DATE '1899-12-30' + BTRIM("Date"::text)::integer
+        WHEN BTRIM("Date"::text) ~ '^\d{4}-\d{2}-\d{2}' THEN LEFT(BTRIM("Date"::text), 10)::date
+        ELSE NULL END'''
+
     def numeric_expr(column: str) -> str:
         return rf'''CASE WHEN REGEXP_REPLACE(BTRIM(e."{column}"::text), '[^0-9.-]', '', 'g') ~ '^-?[0-9]+([.][0-9]+)?$'
             THEN REGEXP_REPLACE(BTRIM(e."{column}"::text), '[^0-9.-]', '', 'g')::numeric ELSE NULL END'''
@@ -53,15 +59,19 @@ def build_overview_router(get_db):
             WHERE {DATE_EXPR} BETWEEN :start_date AND :end_date
               AND (CAST(:factory AS text) IS NULL OR fd.factory = UPPER(BTRIM(CAST(:factory AS text))))
         ),
-        mgr AS (
-            SELECT LEFT(BTRIM("Date"::text), 10)::date AS mgr_date,
+        mgr_parsed AS (
+            SELECT {MGR_DATE_EXPR} AS mgr_date,
                    UPPER(BTRIM("BU"::text)) AS factory,
-                   SUM(CASE WHEN REGEXP_REPLACE(BTRIM("Plan MGR"::text), '[^0-9.-]', '', 'g') ~ '^-?[0-9]+([.][0-9]+)?$'
-                            THEN REGEXP_REPLACE(BTRIM("Plan MGR"::text), '[^0-9.-]', '', 'g')::numeric ELSE NULL END) AS plan_mgr
+                   CASE WHEN REGEXP_REPLACE(BTRIM("Plan MGR"::text), '[^0-9.-]', '', 'g') ~ '^-?[0-9]+([.][0-9]+)?$'
+                        THEN REGEXP_REPLACE(BTRIM("Plan MGR"::text), '[^0-9.-]', '', 'g')::numeric ELSE NULL END AS plan_mgr
             FROM public.tmgr
-            WHERE LEFT(BTRIM("Date"::text), 10)::date BETWEEN :start_date AND :end_date
-              AND (CAST(:factory AS text) IS NULL OR UPPER(BTRIM("BU"::text)) = UPPER(BTRIM(CAST(:factory AS text))))
-            GROUP BY 1,2
+        ),
+        mgr AS (
+            SELECT mgr_date, factory, SUM(plan_mgr) AS plan_mgr
+            FROM mgr_parsed
+            WHERE mgr_date BETWEEN :start_date AND :end_date
+              AND (CAST(:factory AS text) IS NULL OR factory = UPPER(BTRIM(CAST(:factory AS text))))
+            GROUP BY mgr_date, factory
         ),
         bounds AS (
             SELECT CAST(:start_date AS date) AS selected_start, CAST(:end_date AS date) AS selected_end,
