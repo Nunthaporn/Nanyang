@@ -145,13 +145,12 @@ def details(page: int = 1, page_size: int = Query(50, le=200)):
 
 # EFF Last date by Line follows the Power BI relationship:
 #   teffdata.FACTORY (*:1) mt_factory.FACTORY
-# Factory comes from mt_factory, while Date, EasyLean Line, Min Output,
-# Min Input and PD_Type come from teffdata.
-# Latest date is calculated independently for each EasyLean Line.
+# Factory comes from mt_factory; EasyLean Line/Date/EFF fields come from teffdata.
+# UPPER+BTRIM prevents EA from disappearing because of spaces/case differences.
 EASY_LATEST_BY_LINE_SQL = text(r'''
 WITH prepared AS (
     SELECT
-        NULLIF(BTRIM(mf."FACTORY"::text), '') AS factory,
+        UPPER(BTRIM(mf."FACTORY"::text)) AS factory,
         e."Date"::date AS produce_date,
         NULLIF(BTRIM(e."EasyLean Line"::text), '') AS display_line,
         COALESCE(NULLIF(BTRIM(e."PD_Type"::text), ''), 'UNKNOWN') AS product_type,
@@ -159,33 +158,29 @@ WITH prepared AS (
         NULLIF(REPLACE(BTRIM(e."Min Input"::text), ',', ''), '')::numeric AS min_input_num
     FROM public.teffdata e
     INNER JOIN public.mt_factory mf
-        ON BTRIM(e."FACTORY"::text) = BTRIM(mf."FACTORY"::text)
+        ON UPPER(BTRIM(e."FACTORY"::text)) = UPPER(BTRIM(mf."FACTORY"::text))
     WHERE
         e."Date"::date BETWEEN :start_date AND :end_date
         AND (
             CAST(:factory AS text) IS NULL
-            OR BTRIM(mf."FACTORY"::text) = CAST(:factory AS text)
+            OR UPPER(BTRIM(mf."FACTORY"::text)) = UPPER(BTRIM(CAST(:factory AS text)))
         )
         AND (
             CAST(:selected_factory AS text) IS NULL
-            OR BTRIM(mf."FACTORY"::text) = CAST(:selected_factory AS text)
+            OR UPPER(BTRIM(mf."FACTORY"::text)) = UPPER(BTRIM(CAST(:selected_factory AS text)))
         )
         AND (
             CAST(:selected_line AS text) IS NULL
-            OR NULLIF(BTRIM(e."EasyLean Line"::text), '') = CAST(:selected_line AS text)
+            OR NULLIF(BTRIM(e."EasyLean Line"::text), '') = BTRIM(CAST(:selected_line AS text))
         )
         AND (
             CAST(:selected_line_factory AS text) IS NULL
-            OR BTRIM(mf."FACTORY"::text) = CAST(:selected_line_factory AS text)
+            OR UPPER(BTRIM(mf."FACTORY"::text)) = UPPER(BTRIM(CAST(:selected_line_factory AS text)))
         )
-        AND NULLIF(BTRIM(mf."FACTORY"::text), '') IS NOT NULL
         AND NULLIF(BTRIM(e."EasyLean Line"::text), '') IS NOT NULL
 ),
 latest_by_line AS (
-    SELECT
-        factory,
-        display_line,
-        MAX(produce_date) AS latest_date
+    SELECT factory, display_line, MAX(produce_date) AS latest_date
     FROM prepared
     GROUP BY factory, display_line
 ),
@@ -252,6 +247,35 @@ ORDER BY
 ''')
 
 
+EA_DEBUG_SQL = text(r'''
+SELECT
+    COUNT(*) FILTER (
+        WHERE UPPER(BTRIM(e."FACTORY"::text)) = 'EA'
+    ) AS teffdata_ea_rows,
+    COUNT(*) FILTER (
+        WHERE UPPER(BTRIM(e."FACTORY"::text)) = 'EA'
+          AND NULLIF(BTRIM(e."EasyLean Line"::text), '') IS NOT NULL
+    ) AS ea_rows_with_easylean_line,
+    COUNT(*) FILTER (
+        WHERE UPPER(BTRIM(e."FACTORY"::text)) = 'EA'
+          AND mf."FACTORY" IS NOT NULL
+    ) AS ea_rows_matching_mt_factory,
+    COUNT(DISTINCT NULLIF(BTRIM(e."EasyLean Line"::text), '')) FILTER (
+        WHERE UPPER(BTRIM(e."FACTORY"::text)) = 'EA'
+    ) AS ea_easylean_line_count,
+    MIN(e."Date"::date) FILTER (
+        WHERE UPPER(BTRIM(e."FACTORY"::text)) = 'EA'
+    ) AS ea_min_date,
+    MAX(e."Date"::date) FILTER (
+        WHERE UPPER(BTRIM(e."FACTORY"::text)) = 'EA'
+    ) AS ea_max_date
+FROM public.teffdata e
+LEFT JOIN public.mt_factory mf
+    ON UPPER(BTRIM(e."FACTORY"::text)) = UPPER(BTRIM(mf."FACTORY"::text))
+WHERE e."Date"::date BETWEEN :start_date AND :end_date
+''')
+
+
 @app.get("/api/easylean/latest-by-line")
 def easy_latest_by_line(
     start_date: date,
@@ -281,8 +305,22 @@ def easy_latest_by_line(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-# Include the original Easy Lean routes after the override above. FastAPI/Starlette
-# resolves the first matching route, so the fixed latest-by-line endpoint wins.
+@app.get("/api/easylean/debug-ea")
+def easy_debug_ea(start_date: date, end_date: date):
+    if start_date > end_date:
+        raise HTTPException(status_code=422, detail="start_date must be <= end_date")
+    try:
+        with easy_database.engine.connect() as conn:
+            row = conn.execute(
+                EA_DEBUG_SQL,
+                {"start_date": start_date, "end_date": end_date},
+            ).mappings().first()
+            return dict(row) if row else {}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# Include original Easy Lean routes after overrides.
 app.include_router(easy_router)
 
 
