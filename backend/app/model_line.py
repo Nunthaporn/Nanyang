@@ -24,33 +24,21 @@ def build_model_line_router(get_db):
 
     FILTERS_SQL = text(r'''
         WITH date_bounds AS (
-            SELECT
-                MIN(e."Date"::date) AS min_date,
-                MAX(e."Date"::date) AS max_date
+            SELECT MIN(e."Date"::date) AS min_date, MAX(e."Date"::date) AS max_date
             FROM public.teffdata e
             WHERE NULLIF(BTRIM(e."Model Line"::text), '') IS NOT NULL
         ),
         factory_list AS (
             SELECT ARRAY_AGG(factory ORDER BY
-                CASE factory
-                    WHEN 'G1' THEN 1
-                    WHEN 'G2' THEN 2
-                    WHEN 'G3' THEN 3
-                    WHEN 'G4' THEN 4
-                    WHEN 'TRM' THEN 5
-                    WHEN 'EA' THEN 6
-                    ELSE 99
-                END,
-                factory
-            ) AS factories
+                CASE factory WHEN 'G1' THEN 1 WHEN 'G2' THEN 2 WHEN 'G3' THEN 3 WHEN 'G4' THEN 4 WHEN 'TRM' THEN 5 WHEN 'EA' THEN 6 ELSE 99 END,
+                factory) AS factories
             FROM (
                 SELECT DISTINCT UPPER(BTRIM(mf."FACTORY"::text)) AS factory
                 FROM public.mt_factory mf
                 WHERE NULLIF(BTRIM(mf."FACTORY"::text), '') IS NOT NULL
             ) x
         )
-        SELECT d.min_date, d.max_date, f.factories
-        FROM date_bounds d CROSS JOIN factory_list f
+        SELECT d.min_date, d.max_date, f.factories FROM date_bounds d CROSS JOIN factory_list f
     ''')
 
     SUMMARY_SQL = text(r'''
@@ -67,75 +55,46 @@ def build_model_line_router(get_db):
             FROM public.teffdata e
             WHERE e."Date"::date BETWEEN :start_date AND :end_date
               AND NULLIF(BTRIM(e."Model Line"::text), '') IS NOT NULL
-              AND (
-                    CAST(:factory AS text) IS NULL
-                    OR UPPER(BTRIM(e."FACTORY"::text)) = CAST(:factory AS text)
-              )
+              AND (CAST(:factory AS text) IS NULL OR UPPER(BTRIM(e."FACTORY"::text)) = CAST(:factory AS text))
         ),
-        unique_man AS (
-            SELECT d_l, MIN(man) AS man
-            FROM base
-            WHERE d_l IS NOT NULL
-            GROUP BY d_l
-        ),
+        unique_man AS (SELECT d_l, MIN(man) AS man FROM base WHERE d_l IS NOT NULL GROUP BY d_l),
         totals AS (
-            SELECT
-                SUM(min_input) AS sum_inmin,
-                SUM(min_output) AS sum_outmin,
-                SUM(output_pcs) AS sum_pcs,
-                SUM(man_out) AS sum_man,
-                COUNT(DISTINCT fac_line) AS count_line,
-                COUNT(DISTINCT style) AS count_style
+            SELECT SUM(min_input) AS sum_inmin, SUM(min_output) AS sum_outmin, SUM(output_pcs) AS sum_pcs,
+                   SUM(man_out) AS sum_man, COUNT(DISTINCT fac_line) AS count_line, COUNT(DISTINCT style) AS count_style
             FROM base
         ),
-        um AS (
-            SELECT SUM(man) AS sum_unique_man FROM unique_man
-        )
+        um AS (SELECT SUM(man) AS sum_unique_man FROM unique_man)
         SELECT
             t.sum_outmin / NULLIF(t.sum_inmin, 0) AS eff_pct,
             t.sum_outmin AS min_produce,
-            CASE
-                WHEN t.sum_inmin IS NULL OR t.sum_inmin = 0 OR um.sum_unique_man IS NULL OR um.sum_unique_man = 0 THEN NULL
-                ELSE
-                    (t.sum_pcs / NULLIF((t.sum_inmin / um.sum_unique_man) / 60.0, 0))
-                    / NULLIF(um.sum_unique_man, 0)
-            END AS pph,
-            t.count_style,
-            t.sum_man AS operator_count,
-            t.count_line
+            CASE WHEN t.sum_inmin IS NULL OR t.sum_inmin = 0 OR um.sum_unique_man IS NULL OR um.sum_unique_man = 0 THEN NULL
+                 ELSE (t.sum_pcs / NULLIF((t.sum_inmin / um.sum_unique_man) / 60.0, 0)) / NULLIF(um.sum_unique_man, 0) END AS pph,
+            t.count_style, t.sum_man AS operator_count, t.count_line
         FROM totals t CROSS JOIN um
     ''')
 
     EFF_BY_MODEL_SQL = text(r'''
-        SELECT
-            BTRIM(e."Model Line"::text) AS model_line,
-            SUM(NULLIF(REGEXP_REPLACE(BTRIM(e."Min Output"::text), '[^0-9.-]', '', 'g'), '')::numeric)
-              / NULLIF(SUM(NULLIF(REGEXP_REPLACE(BTRIM(e."Min Input"::text), '[^0-9.-]', '', 'g'), '')::numeric), 0) AS eff_pct
+        SELECT BTRIM(e."Model Line"::text) AS model_line,
+               SUM(NULLIF(REGEXP_REPLACE(BTRIM(e."Min Output"::text), '[^0-9.-]', '', 'g'), '')::numeric)
+               / NULLIF(SUM(NULLIF(REGEXP_REPLACE(BTRIM(e."Min Input"::text), '[^0-9.-]', '', 'g'), '')::numeric), 0) AS eff_pct
         FROM public.teffdata e
         WHERE e."Date"::date BETWEEN :start_date AND :end_date
           AND NULLIF(BTRIM(e."Model Line"::text), '') IS NOT NULL
-          AND (
-                CAST(:factory AS text) IS NULL
-                OR UPPER(BTRIM(e."FACTORY"::text)) = CAST(:factory AS text)
-          )
+          AND (CAST(:factory AS text) IS NULL OR UPPER(BTRIM(e."FACTORY"::text)) = CAST(:factory AS text))
         GROUP BY BTRIM(e."Model Line"::text)
         HAVING SUM(NULLIF(REGEXP_REPLACE(BTRIM(e."Min Input"::text), '[^0-9.-]', '', 'g'), '')::numeric) <> 0
         ORDER BY eff_pct DESC NULLS LAST, model_line
     ''')
 
     PRODUCT_TABLE_SQL = text(r'''
-        SELECT
-            COALESCE(NULLIF(BTRIM(e."PD_Type"::text), ''), 'UNKNOWN') AS pd_type,
-            BTRIM(e."Model Line"::text) AS model_line,
-            SUM(NULLIF(REGEXP_REPLACE(BTRIM(e."Min Output"::text), '[^0-9.-]', '', 'g'), '')::numeric)
-              / NULLIF(SUM(NULLIF(REGEXP_REPLACE(BTRIM(e."Min Input"::text), '[^0-9.-]', '', 'g'), '')::numeric), 0) AS eff_pct
+        SELECT COALESCE(NULLIF(BTRIM(e."PD_Type"::text), ''), 'UNKNOWN') AS pd_type,
+               BTRIM(e."Model Line"::text) AS model_line,
+               SUM(NULLIF(REGEXP_REPLACE(BTRIM(e."Min Output"::text), '[^0-9.-]', '', 'g'), '')::numeric)
+               / NULLIF(SUM(NULLIF(REGEXP_REPLACE(BTRIM(e."Min Input"::text), '[^0-9.-]', '', 'g'), '')::numeric), 0) AS eff_pct
         FROM public.teffdata e
         WHERE e."Date"::date BETWEEN :start_date AND :end_date
           AND NULLIF(BTRIM(e."Model Line"::text), '') IS NOT NULL
-          AND (
-                CAST(:factory AS text) IS NULL
-                OR UPPER(BTRIM(e."FACTORY"::text)) = CAST(:factory AS text)
-          )
+          AND (CAST(:factory AS text) IS NULL OR UPPER(BTRIM(e."FACTORY"::text)) = CAST(:factory AS text))
         GROUP BY COALESCE(NULLIF(BTRIM(e."PD_Type"::text), ''), 'UNKNOWN'), BTRIM(e."Model Line"::text)
         HAVING SUM(NULLIF(REGEXP_REPLACE(BTRIM(e."Min Input"::text), '[^0-9.-]', '', 'g'), '')::numeric) <> 0
         ORDER BY pd_type, model_line
@@ -147,49 +106,57 @@ def build_model_line_router(get_db):
                 e."Date"::date AS produce_date,
                 BTRIM(e."Model Line"::text) AS model_line,
                 COALESCE(NULLIF(BTRIM(ml."Line"::text), ''), NULLIF(BTRIM(e."Line"::text), '')) AS line,
+                COALESCE(NULLIF(BTRIM(e."PD_Type"::text), ''), 'UNKNOWN') AS product_type,
                 NULLIF(REGEXP_REPLACE(BTRIM(e."Min Output"::text), '[^0-9.-]', '', 'g'), '')::numeric AS min_output,
                 NULLIF(REGEXP_REPLACE(BTRIM(e."Min Input"::text), '[^0-9.-]', '', 'g'), '')::numeric AS min_input
             FROM public.teffdata e
-            LEFT JOIN public.mt_line ml
-              ON BTRIM(ml."Line"::text) = BTRIM(e."Line"::text)
+            LEFT JOIN public.mt_line ml ON BTRIM(ml."Line"::text) = BTRIM(e."Line"::text)
             WHERE e."Date"::date BETWEEN :start_date AND :end_date
               AND NULLIF(BTRIM(e."Model Line"::text), '') IS NOT NULL
               AND NULLIF(BTRIM(e."Line"::text), '') IS NOT NULL
-              AND (
-                    CAST(:factory AS text) IS NULL
-                    OR UPPER(BTRIM(e."FACTORY"::text)) = CAST(:factory AS text)
-              )
+              AND (CAST(:factory AS text) IS NULL OR UPPER(BTRIM(e."FACTORY"::text)) = CAST(:factory AS text))
         ),
-        latest AS (
-            SELECT MAX(produce_date) AS latest_date FROM prepared
+        latest AS (SELECT MAX(produce_date) AS latest_date FROM prepared),
+        latest_data AS (
+            SELECT p.* FROM prepared p CROSS JOIN latest l WHERE p.produce_date = l.latest_date
+        ),
+        line_total AS (
+            SELECT model_line, line, SUM(min_output) / NULLIF(SUM(min_input), 0) AS eff_pct
+            FROM latest_data GROUP BY model_line, line HAVING SUM(min_input) <> 0
+        ),
+        product_type_eff AS (
+            SELECT model_line, line, product_type,
+                   SUM(min_output) / NULLIF(SUM(min_input), 0) AS eff_pct
+            FROM latest_data
+            WHERE product_type <> 'UNKNOWN'
+            GROUP BY model_line, line, product_type
+            HAVING SUM(min_input) <> 0
+        ),
+        product_json AS (
+            SELECT model_line, line,
+                   JSONB_AGG(JSONB_BUILD_OBJECT('product_type', product_type, 'eff_pct', eff_pct)
+                             ORDER BY eff_pct DESC NULLS LAST, product_type) AS product_types
+            FROM product_type_eff GROUP BY model_line, line
         )
-        SELECT
-            p.model_line,
-            p.line,
-            l.latest_date,
-            SUM(p.min_output) / NULLIF(SUM(p.min_input), 0) AS eff_pct
-        FROM prepared p CROSS JOIN latest l
-        WHERE p.produce_date = l.latest_date
-        GROUP BY p.model_line, p.line, l.latest_date
-        HAVING SUM(p.min_input) <> 0
-        ORDER BY p.model_line,
-                 CASE WHEN p.line ~ '^[0-9]+$' THEN p.line::integer ELSE 999999 END,
-                 p.line
+        SELECT l.model_line, l.line, x.latest_date, l.eff_pct,
+               COALESCE(p.product_types, '[]'::jsonb) AS product_types
+        FROM line_total l
+        CROSS JOIN latest x
+        LEFT JOIN product_json p ON p.model_line = l.model_line AND p.line = l.line
+        ORDER BY l.model_line,
+                 CASE WHEN l.line ~ '^[0-9]+$' THEN l.line::integer ELSE 999999 END,
+                 l.line
     ''')
 
     DATE_MODEL_SQL = text(r'''
-        SELECT
-            e."Date"::date AS produce_date,
-            BTRIM(e."Model Line"::text) AS model_line,
-            SUM(NULLIF(REGEXP_REPLACE(BTRIM(e."Min Output"::text), '[^0-9.-]', '', 'g'), '')::numeric)
-              / NULLIF(SUM(NULLIF(REGEXP_REPLACE(BTRIM(e."Min Input"::text), '[^0-9.-]', '', 'g'), '')::numeric), 0) AS eff_pct
+        SELECT e."Date"::date AS produce_date,
+               BTRIM(e."Model Line"::text) AS model_line,
+               SUM(NULLIF(REGEXP_REPLACE(BTRIM(e."Min Output"::text), '[^0-9.-]', '', 'g'), '')::numeric)
+               / NULLIF(SUM(NULLIF(REGEXP_REPLACE(BTRIM(e."Min Input"::text), '[^0-9.-]', '', 'g'), '')::numeric), 0) AS eff_pct
         FROM public.teffdata e
         WHERE e."Date"::date BETWEEN :start_date AND :end_date
           AND NULLIF(BTRIM(e."Model Line"::text), '') IS NOT NULL
-          AND (
-                CAST(:factory AS text) IS NULL
-                OR UPPER(BTRIM(e."FACTORY"::text)) = CAST(:factory AS text)
-          )
+          AND (CAST(:factory AS text) IS NULL OR UPPER(BTRIM(e."FACTORY"::text)) = CAST(:factory AS text))
         GROUP BY e."Date"::date, BTRIM(e."Model Line"::text)
         HAVING SUM(NULLIF(REGEXP_REPLACE(BTRIM(e."Min Input"::text), '[^0-9.-]', '', 'g'), '')::numeric) <> 0
         ORDER BY produce_date, model_line
@@ -200,11 +167,7 @@ def build_model_line_router(get_db):
         row = db.execute(FILTERS_SQL).mappings().first()
         if not row:
             return {"min_date": None, "max_date": None, "factories": []}
-        return {
-            "min_date": row["min_date"],
-            "max_date": row["max_date"],
-            "factories": [x for x in (row["factories"] or []) if x],
-        }
+        return {"min_date": row["min_date"], "max_date": row["max_date"], "factories": [x for x in (row["factories"] or []) if x]}
 
     @router.get("/summary")
     def summary(start_date: date, end_date: date, factory: str | None = Query(default=None), db: Session = Depends(get_db)):
