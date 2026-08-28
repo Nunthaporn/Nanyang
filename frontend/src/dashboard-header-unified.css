@@ -12,6 +12,7 @@
   --dash-header-bottom-gap: 14px;
   --dash-chart-gap: 14px;
   --dash-page-x: 24px;
+  --dash-title-x: 24px;
 }
 
 /* Same left/right page edge on every dashboard tab. */
@@ -25,6 +26,30 @@
   padding-left: var(--dash-page-x) !important;
   padding-right: var(--dash-page-x) !important;
   box-sizing: border-box !important;
+}
+
+/* Keep the visible dashboard title on exactly the same left edge on every tab. */
+.nanyang-content .ex-header h1,
+.nanyang-content .ov-header h1,
+.nanyang-content .ov02-header h1,
+.nanyang-content .mve-page > h1,
+.nanyang-content .mve-header h1,
+.nanyang-content .ml-header h1,
+.nanyang-content .vvic-header h1,
+.nanyang-content > main.page > .topbar h1,
+.nanyang-content > main.page > .easy-topbar h1 {
+  margin-left: var(--dash-title-x) !important;
+}
+
+/* Avoid doubling the page padding: title offset is relative to the common 24px page edge. */
+.nanyang-content .ex-page,
+.nanyang-content .ov-page,
+.nanyang-content .ov02-page,
+.nanyang-content .mve-page,
+.nanyang-content .ml-page,
+.nanyang-content .vvic-page,
+.nanyang-content > main.page {
+  --dash-title-x: 24px;
 }
 
 /* EASY LEAN previously had width:100% plus outer horizontal padding, which
@@ -265,7 +290,7 @@
 }
 
 @media (max-width: 760px) {
-  :root { --dash-page-x: 12px; }
+  :root { --dash-page-x: 12px; --dash-title-x: 12px; }
 }
 
 @media (max-width: 650px) {
