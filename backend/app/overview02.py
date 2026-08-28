@@ -145,6 +145,7 @@ def build_overview02_router(get_db):
         vv_customer_agg AS (
             SELECT brand_name,
                    SUM(min_output) / NULLIF(SUM(min_input), 0) AS eff_pct,
+                   SUM(min_output) AS min_produce,
                    SUM(min_input) AS sum_inmin, SUM(output_pcs) AS sum_pcs
             FROM vv_customer_base GROUP BY brand_name HAVING SUM(min_input) <> 0
         ),
@@ -152,7 +153,7 @@ def build_overview02_router(get_db):
             SELECT brand_name, SUM(man) AS sum_unique_man FROM vv_customer_unique_man GROUP BY brand_name
         ),
         vv_customer AS (
-            SELECT a.brand_name, a.eff_pct,
+            SELECT a.brand_name, a.eff_pct, a.min_produce,
                    CASE WHEN m.sum_unique_man IS NULL OR m.sum_unique_man = 0 OR a.sum_inmin IS NULL OR a.sum_inmin = 0 THEN NULL
                         ELSE (a.sum_pcs / NULLIF((a.sum_inmin / m.sum_unique_man) / 60.0, 0)) / NULLIF(m.sum_unique_man, 0) END AS pph
             FROM vv_customer_agg a LEFT JOIN vv_customer_man m USING (brand_name)
@@ -166,7 +167,7 @@ def build_overview02_router(get_db):
         SELECT JSONB_BUILD_OBJECT(
             'daily_factory', COALESCE((SELECT JSONB_AGG(JSONB_BUILD_OBJECT('produce_date', produce_date, 'factory', factory, 'eff_pct', eff_pct) ORDER BY produce_date, factory) FROM daily_factory), '[]'::jsonb),
             'vvic_product', COALESCE((SELECT JSONB_AGG(JSONB_BUILD_OBJECT('gmt_type', gmt_type, 'eff_pct', eff_pct, 'pph', pph) ORDER BY eff_pct DESC NULLS LAST, gmt_type) FROM vv_product), '[]'::jsonb),
-            'vvic_customer', COALESCE((SELECT JSONB_AGG(JSONB_BUILD_OBJECT('brand_name', brand_name, 'eff_pct', eff_pct, 'pph', pph) ORDER BY eff_pct DESC NULLS LAST, brand_name) FROM vv_customer), '[]'::jsonb),
+            'vvic_customer', COALESCE((SELECT JSONB_AGG(JSONB_BUILD_OBJECT('brand_name', brand_name, 'eff_pct', eff_pct, 'min_produce', min_produce, 'pph', pph) ORDER BY min_produce DESC NULLS LAST, brand_name) FROM vv_customer), '[]'::jsonb),
             'non_vvic_customer', COALESCE((SELECT JSONB_AGG(JSONB_BUILD_OBJECT('brand_name', brand_name, 'eff_pct', eff_pct) ORDER BY eff_pct DESC NULLS LAST, brand_name) FROM non_vvic), '[]'::jsonb)
         ) AS payload
     ''')

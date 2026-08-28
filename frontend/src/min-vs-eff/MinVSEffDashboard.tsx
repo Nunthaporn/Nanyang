@@ -16,6 +16,10 @@ const formatRefresh = (value?: string) => {
   if (Number.isNaN(d.getTime())) return "";
   return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear() + 543} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
 };
+const yearStartFor = (value: string, minDate?: string | null) => {
+  const yearStart = `${value.slice(0, 4)}-01-01`;
+  return minDate && minDate > yearStart ? minDate : yearStart;
+};
 
 async function getJSON<T>(url: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(url, { signal });
@@ -58,8 +62,9 @@ function CustomerBarChart({ rows, selected, onSelect }: { rows: CustomerRow[]; s
 
 export default function MinVSEffDashboard() {
   const [meta, setMeta] = useState<FilterMeta | null>(null);
-  const [startDate, setStartDate] = useState("2026-01-01");
-  const [endDate, setEndDate] = useState("2026-12-31");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [filtersReady, setFiltersReady] = useState(false);
   const [factory, setFactory] = useState("ALL");
   const [crossFactory, setCrossFactory] = useState<string | null>(null);
   const [crossPdType, setCrossPdType] = useState<string | null>(null);
@@ -72,13 +77,22 @@ export default function MinVSEffDashboard() {
 
   useEffect(() => {
     const c = new AbortController();
-    getJSON<FilterMeta>("/api/min-vs-eff/filters", c.signal).then(setMeta).catch((e) => { if (e.name !== "AbortError") setError(e.message); });
+    getJSON<FilterMeta>("/api/min-vs-eff/filters", c.signal)
+      .then((nextMeta) => {
+        setMeta(nextMeta);
+        const defaultEnd = nextMeta.max_date || new Date().toISOString().slice(0, 10);
+        setEndDate(defaultEnd);
+        setStartDate(yearStartFor(defaultEnd, nextMeta.min_date));
+        setFiltersReady(true);
+      })
+      .catch((e) => { if (e.name !== "AbortError") setError(e.message); });
     return () => c.abort();
   }, []);
 
   const effectiveFactory = crossFactory || factory;
 
   useEffect(() => {
+    if (!filtersReady || !startDate || !endDate) return;
     const c = new AbortController();
     const qs = new URLSearchParams({ start_date: startDate, end_date: endDate });
     if (effectiveFactory !== "ALL") qs.set("factory", effectiveFactory);
@@ -86,10 +100,13 @@ export default function MinVSEffDashboard() {
     if (crossCustomer) qs.set("customer", crossCustomer);
     setLoading(true); setError("");
     getJSON<DashboardData>(`/api/min-vs-eff/dashboard?${qs.toString()}`, c.signal)
-      .then(setData).catch((e) => { if (e.name !== "AbortError") setError(e.message); })
+      .then((nextData) => setData((prevData) => {
+        const keepMatrix = !!(crossFactory || crossPdType || crossCustomer) && prevData.heatmap.length > 0;
+        return keepMatrix ? { ...nextData, heatmap: prevData.heatmap } : nextData;
+      })).catch((e) => { if (e.name !== "AbortError") setError(e.message); })
       .finally(() => { if (!c.signal.aborted) setLoading(false); });
     return () => c.abort();
-  }, [startDate, endDate, effectiveFactory, crossPdType, crossCustomer]);
+  }, [filtersReady, startDate, endDate, effectiveFactory, crossPdType, crossCustomer]);
 
   const factories = useMemo(() => {
     const source = meta?.factories?.length ? meta.factories : FACTORY_ORDER;
@@ -116,8 +133,15 @@ export default function MinVSEffDashboard() {
     const minEff = effValues.length ? Math.min(...effValues) : 0;
     const maxEff = effValues.length ? Math.max(...effValues) : 100;
     const maxProduce = produceValues.length ? Math.max(...produceValues) : 1;
-    const heat = data.heatmap.map((d) => [x.indexOf(d.factory), y.indexOf(d.pd_type), Number(d.eff_pct ?? 0) * 100]);
-    const bubbles = data.heatmap.map((d) => [x.indexOf(d.factory), y.indexOf(d.pd_type), Number(d.min_produce ?? 0), Number(d.eff_pct ?? 0) * 100]);
+    const pointOpacity = (d: HeatPoint) => crossFactory && crossPdType && (crossFactory !== d.factory || crossPdType !== d.pd_type) ? 0.24 : 1;
+    const heat = data.heatmap.map((d) => ({
+      value: [x.indexOf(d.factory), y.indexOf(d.pd_type), Number(d.eff_pct ?? 0) * 100],
+      itemStyle: { opacity: pointOpacity(d) },
+    }));
+    const bubbles = data.heatmap.map((d) => ({
+      value: [x.indexOf(d.factory), y.indexOf(d.pd_type), Number(d.min_produce ?? 0), Number(d.eff_pct ?? 0) * 100],
+      itemStyle: { color: "rgba(255,255,255,.25)", borderColor: crossFactory === d.factory && crossPdType === d.pd_type ? "#0757d7" : "#424242", borderWidth: crossFactory === d.factory && crossPdType === d.pd_type ? 3 : 2, opacity: pointOpacity(d) },
+    }));
     return {
       animationDuration: 300,
       grid: { left: 72, right: 130, top: 28, bottom: 50 },
@@ -127,15 +151,16 @@ export default function MinVSEffDashboard() {
       visualMap: { type: "continuous", seriesIndex: 0, min: Math.floor(minEff), max: Math.ceil(maxEff || 100), orient: "vertical", right: 20, top: 25, itemHeight: 120, itemWidth: 16, text: ["EFF % by FAC", ""], textGap: 8, precision: 0, calculable: false, inRange: { color: ["#fff7fb", "#efd5ee", "#d18bd1", "#ac4ab3"] } },
       series: [
         { type: "heatmap", data: heat, itemStyle: { borderColor: "#ffffff", borderWidth: 2 }, emphasis: { itemStyle: { shadowBlur: 8, shadowColor: "rgba(0,0,0,.18)" } } },
-        { type: "scatter", data: bubbles, z: 5, symbolSize: (v: number[]) => 8 + 30 * Math.sqrt(Math.max(0, v[2]) / maxProduce), itemStyle: { color: "rgba(255,255,255,.25)", borderColor: "#424242", borderWidth: 2 }, label: { show: true, color: "#222", fontSize: 9, fontWeight: 700, formatter: (p: any) => `${Number(p.value[3]).toFixed(0)}%` } },
+        { type: "scatter", data: bubbles, z: 5, symbolSize: (v: number[]) => 8 + 30 * Math.sqrt(Math.max(0, v[2]) / maxProduce), label: { show: true, color: "#222", fontSize: 9, fontWeight: 700, formatter: (p: any) => `${Number(p.value[3]).toFixed(0)}%` } },
       ],
     };
-  }, [data.heatmap, heatAxes]);
+  }, [data.heatmap, heatAxes, crossFactory, crossPdType]);
 
   const selectHeat = (p: any) => {
-    if (p.seriesType !== "scatter") return;
-    const f = heatAxes.x[p.value?.[0]];
-    const pd = heatAxes.y[p.value?.[1]];
+    if (p.seriesType !== "scatter" && p.seriesType !== "heatmap") return;
+    const [factoryIndex, productIndex] = Array.isArray(p.value) ? p.value : [];
+    const f = heatAxes.x[factoryIndex];
+    const pd = heatAxes.y[productIndex];
     if (!f || !pd) return;
     const same = crossFactory === f && crossPdType === pd;
     setCrossFactory(same ? null : f);
@@ -157,7 +182,7 @@ export default function MinVSEffDashboard() {
       {error && <div className="mve-error">{error}</div>}
       <section className={`mve-grid ${loading ? "loading" : ""}`}>
         <article className="mve-card mve-heatmap-card">
-          <div className="mve-card-kicker">EFFICIENCY MATRIX</div><h2>EFF% VS Min Produe by Product Type &amp; Factory</h2>
+          <div className="mve-card-kicker">EFFICIENCY MATRIX</div><h2>EFF% VS Min Produce by Product Type &amp; Factory</h2>
           <ReactECharts option={heatmapOption} notMerge style={{ height: 585, width: "100%" }} onEvents={{ click: selectHeat }} />
         </article>
         <div className="mve-right-stack">

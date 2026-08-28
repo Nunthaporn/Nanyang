@@ -5,7 +5,7 @@ import "./overview02.css";
 type Filters = { min_date: string | null; max_date: string | null; factories: string[] };
 type DailyFactory = { produce_date: string; factory: string; eff_pct: number };
 type Product = { gmt_type: string; eff_pct: number; pph: number | null };
-type Customer = { brand_name: string; eff_pct: number; pph?: number | null };
+type Customer = { brand_name: string; eff_pct: number; min_produce?: number | null; pph?: number | null };
 type DashboardData = {
   daily_factory: DailyFactory[];
   vvic_product: Product[];
@@ -28,6 +28,10 @@ const thaiRefresh = (iso?: string) => {
   if (Number.isNaN(d.getTime())) return "";
   return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear() + 543} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
 };
+const yearStartFor = (value: string, minDate?: string | null) => {
+  const yearStart = `${value.slice(0, 4)}-01-01`;
+  return minDate && minDate > yearStart ? minDate : yearStart;
+};
 
 async function getJSON<T>(path: string, startDate?: string, endDate?: string, factory?: string, gmtType?: string | null, brandName?: string | null): Promise<T> {
   const qs = new URLSearchParams();
@@ -43,8 +47,9 @@ async function getJSON<T>(path: string, startDate?: string, endDate?: string, fa
 
 export default function Overview02Dashboard() {
   const [filters, setFilters] = useState<Filters>({ min_date: null, max_date: null, factories: [] });
-  const [startDate, setStartDate] = useState("2026-01-01");
-  const [endDate, setEndDate] = useState("2026-12-31");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [filtersReady, setFiltersReady] = useState(false);
   const [factory, setFactory] = useState("ALL");
   const [crossFactory, setCrossFactory] = useState<string | null>(null);
   const [crossGmtType, setCrossGmtType] = useState<string | null>(null);
@@ -54,12 +59,21 @@ export default function Overview02Dashboard() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    getJSON<Filters>("/api/overview02/filters").then(setFilters).catch((e) => setError(`Unable to load filters: ${e.message}`));
+    getJSON<Filters>("/api/overview02/filters")
+      .then((nextFilters) => {
+        setFilters(nextFilters);
+        const defaultEnd = nextFilters.max_date || new Date().toISOString().slice(0, 10);
+        setEndDate(defaultEnd);
+        setStartDate(yearStartFor(defaultEnd, nextFilters.min_date));
+        setFiltersReady(true);
+      })
+      .catch((e) => setError(`Unable to load filters: ${e.message}`));
   }, []);
 
   const effectiveFactory = crossFactory || factory;
 
   useEffect(() => {
+    if (!filtersReady || !startDate || !endDate) return;
     let active = true;
     setLoading(true);
     setError("");
@@ -86,38 +100,44 @@ export default function Overview02Dashboard() {
   const ribbonOption = useMemo(() => {
     const rows = data?.daily_factory ?? [];
     const dates = Array.from(new Set(rows.map((x) => x.produce_date))).sort();
-    const visibleDates = dates.slice(Math.max(0, dates.length - 16));
+    const visibleDates = dates.slice(Math.max(0, dates.length - 18));
     const facs = FACTORY_ORDER.filter((f) => rows.some((x) => x.factory === f));
-    const ranks = new Map<string, Map<string, { rank: number; eff: number }>>();
+    const byDate = new Map<string, Map<string, number>>();
     visibleDates.forEach((d) => {
-      const day = rows.filter((x) => x.produce_date === d).sort((a, b) => Number(b.eff_pct) - Number(a.eff_pct));
-      const m = new Map<string, { rank: number; eff: number }>();
-      day.forEach((x, i) => m.set(x.factory, { rank: day.length - i, eff: Number(x.eff_pct) }));
-      ranks.set(d, m);
+      byDate.set(d, new Map(rows.filter((x) => x.produce_date === d).map((x) => [x.factory, Number(x.eff_pct)])));
     });
+    const values = rows
+      .filter((x) => visibleDates.includes(x.produce_date))
+      .map((x) => Number(x.eff_pct))
+      .filter(Number.isFinite);
+    const minY = values.length ? Math.max(0, Math.floor((Math.min(...values) - 0.05) * 20) / 20) : 0;
+    const maxY = values.length ? Math.min(1, Math.ceil((Math.max(...values) + 0.05) * 20) / 20) : 1;
     return {
       animationDuration: 500,
       color: facs.map((f) => COLORS[f]),
-      legend: { top: 0, data: facs, icon: "roundRect", itemWidth: 12, itemHeight: 8 },
-      grid: { left: 26, right: 18, top: 42, bottom: 38 },
-      tooltip: { trigger: "item", formatter: (p: any) => `${p.seriesName}<br/>${p.data?.date ?? ""}<br/>EFF%: ${pct(p.data?.eff)}` },
+      legend: { top: 0, data: facs, icon: "circle", itemWidth: 9, itemHeight: 9 },
+      grid: { left: 48, right: 26, top: 42, bottom: 40 },
+      tooltip: { trigger: "axis", valueFormatter: (v: number) => pct(v) },
       xAxis: { type: "category", data: visibleDates, boundaryGap: false, axisTick: { show: false }, axisLabel: { fontSize: 10, formatter: (v: string) => { const [y, m, d] = v.split("-"); return `${d}/${m}/${y.slice(2)}`; } } },
-      yAxis: { type: "value", min: 0.5, max: Math.max(1.5, facs.length + 0.5), show: false },
+      yAxis: { type: "value", min: minY, max: maxY, axisLabel: { formatter: (v: number) => `${Math.round(v * 100)}%` }, splitLine: { lineStyle: { color: "#dce6f1", type: "dashed" } } },
       series: facs.map((f) => ({
-        name: f, type: "line", smooth: 0.42, symbol: "circle", symbolSize: 4,
-        lineStyle: { width: 22, opacity: crossFactory && crossFactory !== f ? 0.18 : 0.78, cap: "round", join: "round" },
+        name: f, type: "line", smooth: 0.18, symbol: "circle", symbolSize: 5, connectNulls: true,
+        lineStyle: { width: 2.6, opacity: crossFactory && crossFactory !== f ? 0.16 : 0.9 },
+        itemStyle: { color: COLORS[f] },
         emphasis: { focus: "series", lineStyle: { opacity: 0.98 } },
-        data: visibleDates.map((d) => {
-          const x = ranks.get(d)?.get(f);
-          return x ? { value: x.rank, eff: x.eff, date: d, label: { show: true, formatter: pct(x.eff), position: "inside", color: "#111827", fontSize: 9, fontWeight: 700 } } : null;
+        data: visibleDates.map((d, i) => {
+          const value = byDate.get(d)?.get(f);
+          const showLabel = crossFactory ? crossFactory === f : i % 3 === 0 || i === visibleDates.length - 1;
+          return Number.isFinite(value) ? { value, label: { show: showLabel, formatter: pct(value, 1), position: "top", distance: 5, color: COLORS[f], fontSize: 9, fontWeight: 700, backgroundColor: "rgba(255,255,255,.86)", borderRadius: 3, padding: [1, 3] } } : null;
         }),
+        labelLayout: { hideOverlap: true, moveOverlap: "shiftY" },
       })),
     };
   }, [data, crossFactory]);
 
   const barOption = (rows: Array<{ name: string; eff: number; pph?: number | null }>, withPph: boolean, scroll = false, selected?: string | null) => ({
     animationDuration: 350,
-    grid: { left: 54, right: 28, top: 35, bottom: scroll ? 72 : 62 },
+    grid: { left: 54, right: 64, top: 46, bottom: scroll ? 72 : 62 },
     tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, formatter: (items: any[]) => {
       const p = items[0]; const r = rows[p.dataIndex];
       return `<b>${r?.name ?? ""}</b><br/>MTD EFF%: ${pct(r?.eff, 2)}${withPph && r?.pph != null ? `<br/>PPH: ${Number(r.pph).toFixed(2)}` : ""}`;
@@ -129,7 +149,7 @@ export default function Overview02Dashboard() {
       type: "bar", barMaxWidth: 48,
       data: rows.map((x) => ({ value: x.eff, itemStyle: { color: x.eff >= TARGET ? "#22b957" : "#ef5560", opacity: selected && selected !== x.name ? 0.25 : 1, borderRadius: [4, 4, 0, 0] } })),
       label: { show: true, position: "top", formatter: (p: any) => { const r = rows[p.dataIndex]; const eff = pct(r?.eff, 2); return withPph && r?.pph != null ? `{eff|${eff}}\n{pph|${Number(r.pph).toFixed(2)}}` : `{eff|${eff}}`; }, rich: { eff: { color: "#667085", fontSize: 10 }, pph: { color: "#0aa6a6", fontSize: 11, fontWeight: 700, lineHeight: 15 } } },
-      markLine: { silent: true, symbol: "none", lineStyle: { color: "#6686cf", type: "dashed", width: 2 }, label: { formatter: "Target 60%", position: "insideEndTop", color: "#3561b6" }, data: [{ yAxis: TARGET }] },
+      markLine: { silent: true, symbol: "none", lineStyle: { color: "#6686cf", type: "dashed", width: 2 }, label: { formatter: "Target 60%", position: "end", distance: 2, offset: [-6, -9], color: "#3561b6", fontWeight: 700, fontSize: 10, padding: [1, 3], backgroundColor: "rgba(255,255,255,0.92)", borderRadius: 3 }, data: [{ yAxis: TARGET }] },
     }],
   });
 

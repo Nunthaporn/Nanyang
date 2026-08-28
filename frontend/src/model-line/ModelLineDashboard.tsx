@@ -17,6 +17,7 @@ const pct = (v: unknown, digits = 1) => { const n = num(v); return n == null || 
 const fmt = (v: unknown, digits = 0) => { const n = num(v); if (n == null || Number.isNaN(n)) return "-"; return new Intl.NumberFormat("en-US", { maximumFractionDigits: digits, minimumFractionDigits: digits }).format(n); };
 const fmtM = (v: unknown) => { const n = num(v); if (n == null || Number.isNaN(n)) return "-"; return Math.abs(n) >= 1_000_000 ? `${(n / 1_000_000).toFixed(2)}M` : fmt(n); };
 const thaiRefresh = (iso?: string) => { if (!iso) return ""; const d = new Date(iso); if (Number.isNaN(d.getTime())) return ""; return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear() + 543} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`; };
+const yearStartFor = (value: string, minDate?: string | null) => { const yearStart = `${value.slice(0, 4)}-01-01`; return minDate && minDate > yearStart ? minDate : yearStart; };
 
 async function getJSON<T>(path: string, startDate?: string, endDate?: string, factory?: string): Promise<T> {
   const params = new URLSearchParams(); if (startDate) params.set("start_date", startDate); if (endDate) params.set("end_date", endDate); if (factory && factory !== "ALL") params.set("factory", factory);
@@ -26,8 +27,9 @@ function Kpi({ label, value }: { label: string; value: string }) { return <div c
 
 export default function ModelLineDashboard() {
   const [filters, setFilters] = useState<Filters>({ min_date: null, max_date: null, factories: [] });
-  const [startDate, setStartDate] = useState("2026-01-01");
-  const [endDate, setEndDate] = useState("2026-12-31");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [filtersReady, setFiltersReady] = useState(false);
   const [factory, setFactory] = useState("ALL");
   const [summary, setSummary] = useState<Summary | null>(null);
   const [modelEff, setModelEff] = useState<ModelEff[]>([]);
@@ -38,8 +40,19 @@ export default function ModelLineDashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => { getJSON<Filters>("/api/model-line/filters").then(setFilters).catch((e) => setError(`Unable to load filters: ${e.message}`)); }, []);
   useEffect(() => {
+    getJSON<Filters>("/api/model-line/filters")
+      .then((nextFilters) => {
+        setFilters(nextFilters);
+        const defaultEnd = nextFilters.max_date || new Date().toISOString().slice(0, 10);
+        setEndDate(defaultEnd);
+        setStartDate(yearStartFor(defaultEnd, nextFilters.min_date));
+        setFiltersReady(true);
+      })
+      .catch((e) => setError(`Unable to load filters: ${e.message}`));
+  }, []);
+  useEffect(() => {
+    if (!filtersReady || !startDate || !endDate) return;
     let active = true; setLoading(true); setError("");
     Promise.all([
       getJSON<Summary>("/api/model-line/summary", startDate, endDate, factory),
@@ -52,7 +65,7 @@ export default function ModelLineDashboard() {
       setSelectedModel((current) => (current && m.some((x) => x.model_line === current) ? current : null));
     }).catch((e) => active && setError(`Unable to load Model-Line dashboard: ${e.message}`)).finally(() => active && setLoading(false));
     return () => { active = false; };
-  }, [startDate, endDate, factory]);
+  }, [filtersReady, startDate, endDate, factory]);
 
   const factories = useMemo(() => {
     const values = filters.factories.length ? filters.factories : FACTORY_ORDER;
@@ -65,11 +78,11 @@ export default function ModelLineDashboard() {
   const visibleDateModel = useMemo(() => selectedModel ? dateModel.filter((x) => x.model_line === selectedModel) : dateModel, [dateModel, selectedModel]);
 
   const modelBarOption = useMemo(() => ({
-    animationDuration: 350, grid: { left: 45, right: 20, top: 28, bottom: 34 },
+    animationDuration: 350, grid: { left: 45, right: 64, top: 44, bottom: 34 },
     tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, valueFormatter: (v: number) => `${(v * 100).toFixed(1)}%` },
     xAxis: { type: "category", data: visibleModelEff.map((x) => x.model_line), axisTick: { show: false }, axisLine: { show: false } },
     yAxis: { type: "value", min: 0, max: 1.15, axisLabel: { formatter: (v: number) => `${Math.round(v * 100)}%` }, splitLine: { lineStyle: { color: "#dce6f1", type: "dashed" } } },
-    series: [{ type: "bar", barMaxWidth: 48, data: visibleModelEff.map((x) => ({ value: Number(x.eff_pct), itemStyle: { color: Number(x.eff_pct) >= TARGET ? "#22b956" : "#ef4760", borderRadius: [5, 5, 0, 0] } })), label: { show: true, position: "top", formatter: (p: any) => `${(Number(p.value) * 100).toFixed(1)}%`, fontSize: 11 }, markLine: { silent: true, symbol: "none", lineStyle: { color: "#6686cf", type: "dashed", width: 2 }, label: { formatter: "Target 65%", position: "insideEndTop", color: "#3561b6" }, data: [{ yAxis: TARGET }] } }],
+    series: [{ type: "bar", barMaxWidth: 48, data: visibleModelEff.map((x) => ({ value: Number(x.eff_pct), itemStyle: { color: Number(x.eff_pct) >= TARGET ? "#22b956" : "#ef4760", borderRadius: [5, 5, 0, 0] } })), label: { show: true, position: "top", formatter: (p: any) => `${(Number(p.value) * 100).toFixed(1)}%`, fontSize: 11 }, markLine: { silent: true, symbol: "none", lineStyle: { color: "#6686cf", type: "dashed", width: 2 }, label: { formatter: "Target 65%", position: "end", distance: 2, offset: [-6, -9], color: "#3561b6", fontWeight: 700, fontSize: 10, padding: [1, 3], backgroundColor: "rgba(255,255,255,0.92)", borderRadius: 3 }, data: [{ yAxis: TARGET }] } }],
   }), [visibleModelEff]);
 
   const productPivot = useMemo(() => {
@@ -84,27 +97,33 @@ export default function ModelLineDashboard() {
   }, [visibleProduct]);
 
   const makeLatestOption = (rows: LatestLine[], compact = false) => ({
-    animationDuration: 350, grid: { left: 48, right: 20, top: 30, bottom: compact ? 52 : 62 },
+    animationDuration: 350, grid: { left: 48, right: 64, top: 44, bottom: compact ? 52 : 62 },
     tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, formatter: (items: any[]) => { const i = items[0]; const r = rows[i.dataIndex]; return `<b>${r?.model_line ?? ""} · Line ${r?.line ?? ""}</b><br/>EFF%: ${(Number(i.value) * 100).toFixed(1)}%<br/>Latest date: ${r?.latest_date ?? ""}`; } },
     xAxis: { type: "category", data: rows.map((x) => `${x.line}\n${x.model_line}`), axisLabel: { interval: 0, fontSize: compact ? 10 : 9 }, axisTick: { show: false } },
     yAxis: { type: "value", min: 0, axisLabel: { formatter: (v: number) => `${Math.round(v * 100)}%` }, splitLine: { lineStyle: { color: "#e3ebf4" } } },
     dataZoom: rows.length > 14 ? [{ type: "inside", startValue: 0, endValue: 13 }, { type: "slider", height: 12, bottom: 4, showDetail: false }] : [],
-    series: [{ type: "bar", barMaxWidth: 42, data: rows.map((x) => ({ value: Number(x.eff_pct), itemStyle: { color: Number(x.eff_pct) >= TARGET ? "#22b956" : "#ef1760", borderRadius: [4, 4, 0, 0] } })), label: { show: true, position: "top", formatter: (p: any) => `${(Number(p.value) * 100).toFixed(1)}%`, fontSize: 10 }, markLine: { silent: true, symbol: "none", lineStyle: { color: "#6686cf", type: "dashed", width: 2 }, label: { formatter: "Target 65%", position: "insideEndTop", color: "#3561b6" }, data: [{ yAxis: TARGET }] } }],
+    series: [{ type: "bar", barMaxWidth: 42, data: rows.map((x) => ({ value: Number(x.eff_pct), itemStyle: { color: Number(x.eff_pct) >= TARGET ? "#22b956" : "#ef1760", borderRadius: [4, 4, 0, 0] } })), label: { show: true, position: "top", formatter: (p: any) => `${(Number(p.value) * 100).toFixed(1)}%`, fontSize: 10 }, markLine: { silent: true, symbol: "none", lineStyle: { color: "#6686cf", type: "dashed", width: 2 }, label: { formatter: "Target 65%", position: "end", distance: 2, offset: [-6, -9], color: "#3561b6", fontWeight: 700, fontSize: 10, padding: [1, 3], backgroundColor: "rgba(255,255,255,0.92)", borderRadius: 3 }, data: [{ yAxis: TARGET }] } }],
   });
 
   const ribbonOption = useMemo(() => {
     const dates = Array.from(new Set(visibleDateModel.map((x) => x.produce_date))).sort();
-    const visibleDates = dates.slice(Math.max(0, dates.length - 12));
+    const visibleDates = dates.slice(Math.max(0, dates.length - 18));
     const models = Array.from(new Set(visibleDateModel.map((x) => x.model_line))).sort();
-    const ranks = new Map<string, Map<string, { rank: number; eff: number }>>();
-    visibleDates.forEach((d) => { const day = visibleDateModel.filter((x) => x.produce_date === d).sort((a, b) => Number(b.eff_pct) - Number(a.eff_pct)); const map = new Map<string, { rank: number; eff: number }>(); day.forEach((x, i) => map.set(x.model_line, { rank: day.length - i, eff: Number(x.eff_pct) })); ranks.set(d, map); });
+    const byDate = new Map<string, Map<string, number>>();
+    visibleDates.forEach((d) => byDate.set(d, new Map(visibleDateModel.filter((x) => x.produce_date === d).map((x) => [x.model_line, Number(x.eff_pct)]))));
+    const values = visibleDateModel
+      .filter((x) => visibleDates.includes(x.produce_date))
+      .map((x) => Number(x.eff_pct))
+      .filter(Number.isFinite);
+    const minY = values.length ? Math.max(0, Math.floor((Math.min(...values) - 0.05) * 20) / 20) : 0;
+    const maxY = values.length ? Math.min(1.15, Math.ceil((Math.max(...values) + 0.05) * 20) / 20) : 1;
     return {
-      animationDuration: 450, color: models.map((m) => MODEL_COLORS[m] || "#64748b"), legend: { top: 0, data: models, icon: "roundRect", itemWidth: 12, itemHeight: 8 }, grid: { left: 28, right: 24, top: 42, bottom: 34 },
-      tooltip: { trigger: "item", formatter: (p: any) => `${p.seriesName}<br/>${p.data.date}<br/>EFF%: ${(p.data.eff * 100).toFixed(1)}%` },
-      xAxis: { type: "category", data: visibleDates, boundaryGap: false, axisTick: { show: false }, axisLabel: { formatter: (v: string) => { const [y, m, d] = v.split("-"); return `${d}/${m}/${y.slice(2)}`; } } }, yAxis: { type: "value", min: 0.5, max: Math.max(1.5, models.length + 0.5), show: false },
-      series: models.map((m) => ({ name: m, type: "line", smooth: 0.42, symbol: "circle", symbolSize: 5, lineStyle: { width: 24, opacity: 0.78, cap: "round", join: "round" }, emphasis: { focus: "series", lineStyle: { opacity: 0.95 } }, data: visibleDates.map((d) => { const x = ranks.get(d)?.get(m); return x ? { value: x.rank, eff: x.eff, date: d, label: { show: true, formatter: `${(x.eff * 100).toFixed(1)}%`, color: "#111827", fontWeight: 700, fontSize: 10, position: "inside" } } : null; }) })),
+      animationDuration: 450, color: models.map((m) => MODEL_COLORS[m] || "#64748b"), legend: { top: 0, data: models, icon: "circle", itemWidth: 9, itemHeight: 9 }, grid: { left: 48, right: 28, top: 42, bottom: 36 },
+      tooltip: { trigger: "axis", valueFormatter: (v: number) => pct(v) },
+      xAxis: { type: "category", data: visibleDates, boundaryGap: false, axisTick: { show: false }, axisLabel: { formatter: (v: string) => { const [y, m, d] = v.split("-"); return `${d}/${m}/${y.slice(2)}`; } } }, yAxis: { type: "value", min: minY, max: maxY, axisLabel: { formatter: (v: number) => `${Math.round(v * 100)}%` }, splitLine: { lineStyle: { color: "#dce6f1", type: "dashed" } } },
+      series: models.map((m) => ({ name: m, type: "line", smooth: 0.18, symbol: "circle", symbolSize: 5, connectNulls: true, lineStyle: { width: 2.6, opacity: 0.9 }, itemStyle: { color: MODEL_COLORS[m] || "#64748b" }, emphasis: { focus: "series", lineStyle: { opacity: 0.98 } }, data: visibleDates.map((d, i) => { const value = byDate.get(d)?.get(m); const showLabel = selectedModel ? true : i % 3 === 0 || i === visibleDates.length - 1; return Number.isFinite(value) ? { value, label: { show: showLabel, formatter: pct(value, 1), position: "top", distance: 5, color: MODEL_COLORS[m] || "#263446", fontWeight: 700, fontSize: 9, backgroundColor: "rgba(255,255,255,.86)", borderRadius: 3, padding: [1, 3] } } : null; }), labelLayout: { hideOverlap: true, moveOverlap: "shiftY" } })),
     };
-  }, [visibleDateModel]);
+  }, [visibleDateModel, selectedModel]);
 
   const toggleModel = (m: string) => setSelectedModel((v) => v === m ? null : m);
 

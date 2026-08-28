@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState } from "react";
 
+const ExecutiveSummaryDashboard = lazy(() => import("./executive/ExecutiveSummaryDashboard"));
 const OverviewDashboard = lazy(() => import("./overview/OverviewDashboard"));
 const Overview02Dashboard = lazy(() => import("./overview02/Overview02Dashboard"));
 const MinVSEffDashboard = lazy(() => import("./min-vs-eff/MinVSEffDashboard"));
@@ -7,10 +8,10 @@ const ModelLineDashboard = lazy(() => import("./model-line/ModelLineDashboard"))
 const EasyLeanDashboard = lazy(() => import("../../apps/easy-lean/frontend/src/App"));
 const VVICDashboard = lazy(() => import("../../apps/vvic/frontend/src/App"));
 
-type DashboardKey = "overview" | "overview02" | "min-vs-eff" | "model-line" | "easy-lean" | "vvic";
+type DashboardKey = "executive" | "overview" | "overview02" | "min-vs-eff" | "model-line" | "easy-lean" | "vvic";
 
 export default function App() {
-  const [active, setActive] = useState<DashboardKey>("overview");
+  const [active, setActive] = useState<DashboardKey>("executive");
 
   return (
     <div className="nanyang-shell">
@@ -20,6 +21,7 @@ export default function App() {
           <span>Dashboard Center</span>
         </div>
         <nav className="nanyang-tabs" aria-label="Dashboard selector">
+          <button className={active === "executive" ? "active" : ""} onClick={() => setActive("executive")}>Executive</button>
           <button className={active === "overview" ? "active" : ""} onClick={() => setActive("overview")}>Overview</button>
           <button className={active === "overview02" ? "active" : ""} onClick={() => setActive("overview02")}>Overview02</button>
           <button className={active === "min-vs-eff" ? "active" : ""} onClick={() => setActive("min-vs-eff")}>MinVSEff</button>
@@ -31,6 +33,7 @@ export default function App() {
 
       <main className="nanyang-content">
         <Suspense fallback={<div className="nanyang-loading">Loading dashboard...</div>}>
+          {active === "executive" && <ExecutiveSummaryDashboard />}
           {active === "overview" && <OverviewDashboard />}
           {active === "overview02" && <Overview02Dashboard />}
           {active === "min-vs-eff" && <MinVSEffDashboard />}

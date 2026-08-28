@@ -51,13 +51,18 @@ def build_overview_router(get_db):
             SELECT DISTINCT UPPER(BTRIM("FACTORY"::text)) AS factory FROM public.mt_factory
             WHERE NULLIF(BTRIM("FACTORY"::text), '') IS NOT NULL
         ),
-        base AS (
+        raw_base AS (
             SELECT {DATE_EXPR} AS produce_date, fd.factory,
                    {MIN_OUTPUT} AS min_output, {MIN_INPUT} AS min_input, {OUTPUT_PCS} AS output_pcs
             FROM public.teffdata e
             INNER JOIN factory_dim fd ON fd.factory = UPPER(BTRIM(e."FACTORY"::text))
-            WHERE {DATE_EXPR} BETWEEN :start_date AND :end_date
+            WHERE {DATE_EXPR} <= :end_date
               AND (CAST(:factory AS text) IS NULL OR fd.factory = UPPER(BTRIM(CAST(:factory AS text))))
+        ),
+        base AS (
+            SELECT *
+            FROM raw_base
+            WHERE produce_date BETWEEN :start_date AND :end_date
         ),
         mgr_parsed AS (
             SELECT {MGR_DATE_EXPR} AS mgr_date,
@@ -74,25 +79,25 @@ def build_overview_router(get_db):
             GROUP BY mgr_date, factory
         ),
         bounds AS (
-            SELECT CAST(:start_date AS date) AS selected_start, CAST(:end_date AS date) AS selected_end,
-                   GREATEST(CAST(:start_date AS date), DATE_TRUNC('year', CAST(:end_date AS date))::date) AS ytd_start,
-                   GREATEST(CAST(:start_date AS date), DATE_TRUNC('quarter', CAST(:end_date AS date))::date) AS qtd_start,
-                   GREATEST(CAST(:start_date AS date), DATE_TRUNC('month', CAST(:end_date AS date))::date) AS mtd_start
+            SELECT CAST(:start_date AS date) AS selected_start, CAST(:end_date AS date) AS selected_end
         ),
-        latest_date AS (SELECT MAX(produce_date) AS ld FROM base),
+        latest_date AS (SELECT MAX(produce_date) AS ld FROM raw_base),
         period_bounds AS (
-            SELECT 'YTD' AS period, ytd_start AS p_start, selected_end AS p_end FROM bounds UNION ALL
-            SELECT 'QTD', qtd_start, selected_end FROM bounds UNION ALL
-            SELECT 'MTD', mtd_start, selected_end FROM bounds UNION ALL
+            SELECT 'YTD' AS period, DATE_TRUNC('year', ld)::date AS p_start, ld AS p_end FROM latest_date UNION ALL
+            SELECT 'QTD', DATE_TRUNC('quarter', ld)::date, ld FROM latest_date UNION ALL
+            SELECT 'MTD', DATE_TRUNC('month', ld)::date, ld FROM latest_date UNION ALL
             SELECT 'LD', ld, ld FROM latest_date
         ),
         period_teff AS (
             SELECT p.period, SUM(b.min_output) AS sum_outmin, SUM(b.min_input) AS sum_inmin, SUM(b.output_pcs) AS sum_pcs
-            FROM period_bounds p LEFT JOIN base b ON b.produce_date BETWEEN p.p_start AND p.p_end GROUP BY p.period
+            FROM period_bounds p LEFT JOIN raw_base b ON b.produce_date BETWEEN p.p_start AND p.p_end GROUP BY p.period
         ),
         period_mgr AS (
             SELECT p.period, SUM(m.plan_mgr) AS sum_mgr
-            FROM period_bounds p LEFT JOIN mgr m ON m.mgr_date BETWEEN p.p_start AND p.p_end GROUP BY p.period
+            FROM period_bounds p LEFT JOIN mgr_parsed m
+              ON m.mgr_date BETWEEN p.p_start AND p.p_end
+             AND (CAST(:factory AS text) IS NULL OR m.factory = UPPER(BTRIM(CAST(:factory AS text))))
+            GROUP BY p.period
         ),
         overall_periods AS (
             SELECT t.period,
@@ -104,7 +109,7 @@ def build_overview_router(get_db):
         ),
         factory_periods AS (
             SELECT p.period, b.factory, SUM(b.min_output)/NULLIF(SUM(b.min_input),0) AS eff_pct
-            FROM period_bounds p JOIN base b ON b.produce_date BETWEEN p.p_start AND p.p_end
+            FROM period_bounds p JOIN raw_base b ON b.produce_date BETWEEN p.p_start AND p.p_end
             GROUP BY p.period,b.factory
         ),
         monthly AS (
