@@ -46,7 +46,8 @@ export default function App() {
 
   // Each dashboard loads its own filter metadata after mount and can briefly set its
   // own default dates. Re-apply the shared range only at a few fixed checkpoints.
-  // No MutationObserver and no continuous polling are used.
+  // Overview's filter request can finish later than the other dashboards, so only
+  // Overview gets a few extra checkpoints. No observer or continuous polling is used.
   useEffect(() => {
     if (!sharedDates.startDate || !sharedDates.endDate) return;
 
@@ -59,7 +60,10 @@ export default function App() {
       setReactDateInput(inputs[1], sharedDates.endDate);
     };
 
-    const delays = [0, 250, 700, 1500, 3000];
+    const delays = active === "overview"
+      ? [0, 250, 700, 1500, 3000, 5000, 8000]
+      : [0, 250, 700, 1500, 3000];
+
     const timers = delays.map((delay) => window.setTimeout(apply, delay));
     return () => timers.forEach((timer) => window.clearTimeout(timer));
   }, [active, sharedDates]);
