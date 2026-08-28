@@ -19,6 +19,35 @@ const fmtM = (v: unknown) => { const n = num(v); if (n == null || Number.isNaN(n
 const thaiRefresh = (iso?: string) => { if (!iso) return ""; const d = new Date(iso); if (Number.isNaN(d.getTime())) return ""; return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear() + 543} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`; };
 const yearStartFor = (value: string, minDate?: string | null) => { const yearStart = `${value.slice(0, 4)}-01-01`; return minDate && minDate > yearStart ? minDate : yearStart; };
 
+const bindHorizontalTrackpadPan = (chart: any, itemCount: number, visibleCount: number) => {
+  const dom = chart?.getDom?.();
+  if (!dom || itemCount <= visibleCount) return;
+  const previous = (dom as any).__horizontalTrackpadPan;
+  if (previous) dom.removeEventListener("wheel", previous);
+
+  const handler = (event: WheelEvent) => {
+    if (Math.abs(event.deltaX) < 1 || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
+    event.preventDefault();
+
+    const zoom = chart.getOption()?.dataZoom?.[0] ?? {};
+    const currentStart = Number(zoom.startValue ?? 0);
+    const maxStart = Math.max(0, itemCount - visibleCount);
+    const step = Math.max(1, Math.min(3, Math.round(Math.abs(event.deltaX) / 45)));
+    const nextStart = Math.max(0, Math.min(maxStart, currentStart + (event.deltaX > 0 ? step : -step)));
+    if (nextStart === currentStart) return;
+
+    chart.dispatchAction({
+      type: "dataZoom",
+      dataZoomIndex: 0,
+      startValue: nextStart,
+      endValue: nextStart + visibleCount - 1,
+    });
+  };
+
+  dom.addEventListener("wheel", handler, { passive: false });
+  (dom as any).__horizontalTrackpadPan = handler;
+};
+
 async function getJSON<T>(path: string, startDate?: string, endDate?: string, factory?: string): Promise<T> {
   const params = new URLSearchParams(); if (startDate) params.set("start_date", startDate); if (endDate) params.set("end_date", endDate); if (factory && factory !== "ALL") params.set("factory", factory);
   const res = await fetch(`${path}${params.size ? `?${params.toString()}` : ""}`); if (!res.ok) throw new Error(await res.text()); return res.json();
@@ -142,11 +171,11 @@ export default function ModelLineDashboard() {
         <div className="ml-grid ml-top-grid">
           <section className="ml-card"><h2>EFF% by Model Line</h2><ReactECharts option={modelBarOption} style={{ height: 300 }} onEvents={{ click: (p: any) => p.name && toggleModel(p.name) }} /></section>
           <section className="ml-card ml-table-card"><h2>EFF% by PD_Type and Model Line</h2><div className="ml-table-scroll"><table><thead><tr><th>PD_Type</th>{productPivot.models.map((m) => <th key={m}>{m}</th>)}<th>Total</th></tr></thead><tbody>{productPivot.rows.map((r) => <tr key={r.pd}><td>{r.pd}</td>{productPivot.models.map((m) => <td key={m}>{pct(r.byModel[m], 0)}</td>)}<td>{pct(r.total, 0)}</td></tr>)}</tbody></table></div></section>
-          <section className="ml-card"><h2>Eff Latest date by Model Line and Line</h2><ReactECharts option={makeLatestOption(visibleLatest)} style={{ height: 300 }} onEvents={{ click: (p: any) => { const row = visibleLatest[p.dataIndex]; if (row) toggleModel(row.model_line); } }} /></section>
+          <section className="ml-card"><h2>Eff Latest date by Model Line and Line</h2><ReactECharts key={`latest-top-${visibleLatest.length}`} option={makeLatestOption(visibleLatest)} style={{ height: 300 }} onChartReady={(chart: any) => bindHorizontalTrackpadPan(chart, visibleLatest.length, 14)} onEvents={{ click: (p: any) => { const row = visibleLatest[p.dataIndex]; if (row) toggleModel(row.model_line); } }} /></section>
         </div>
         <div className="ml-grid ml-bottom-grid">
           <section className="ml-card"><div className="ml-title-row"><h2>EFF% by Date and Model Line</h2></div><ReactECharts option={ribbonOption} style={{ height: 310 }} onEvents={{ click: (p: any) => p.seriesName && toggleModel(p.seriesName) }} /></section>
-          <section className="ml-card"><h2>Eff Latest date by Model Line and Line{selectedModel ? ` · ${selectedModel}` : ""}</h2><ReactECharts option={makeLatestOption(visibleLatest, true)} style={{ height: 310 }} onEvents={{ click: (p: any) => { const row = visibleLatest[p.dataIndex]; if (row) toggleModel(row.model_line); } }} /></section>
+          <section className="ml-card"><h2>Eff Latest date by Model Line and Line{selectedModel ? ` · ${selectedModel}` : ""}</h2><ReactECharts key={`latest-bottom-${visibleLatest.length}`} option={makeLatestOption(visibleLatest, true)} style={{ height: 310 }} onChartReady={(chart: any) => bindHorizontalTrackpadPan(chart, visibleLatest.length, 14)} onEvents={{ click: (p: any) => { const row = visibleLatest[p.dataIndex]; if (row) toggleModel(row.model_line); } }} /></section>
         </div>
       </div>
     </div>
