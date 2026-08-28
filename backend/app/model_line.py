@@ -148,17 +148,47 @@ def build_model_line_router(get_db):
     ''')
 
     DATE_MODEL_SQL = text(r'''
-        SELECT e."Date"::date AS produce_date,
-               BTRIM(e."Model Line"::text) AS model_line,
-               SUM(NULLIF(REGEXP_REPLACE(BTRIM(e."Min Output"::text), '[^0-9.-]', '', 'g'), '')::numeric)
-               / NULLIF(SUM(NULLIF(REGEXP_REPLACE(BTRIM(e."Min Input"::text), '[^0-9.-]', '', 'g'), '')::numeric), 0) AS eff_pct
-        FROM public.teffdata e
-        WHERE e."Date"::date BETWEEN :start_date AND :end_date
-          AND NULLIF(BTRIM(e."Model Line"::text), '') IS NOT NULL
-          AND (CAST(:factory AS text) IS NULL OR UPPER(BTRIM(e."FACTORY"::text)) = CAST(:factory AS text))
-        GROUP BY e."Date"::date, BTRIM(e."Model Line"::text)
-        HAVING SUM(NULLIF(REGEXP_REPLACE(BTRIM(e."Min Input"::text), '[^0-9.-]', '', 'g'), '')::numeric) <> 0
-        ORDER BY produce_date, model_line
+        WITH prepared AS (
+            SELECT
+                e."Date"::date AS produce_date,
+                BTRIM(e."Model Line"::text) AS model_line,
+                COALESCE(NULLIF(BTRIM(e."PD_Type"::text), ''), 'OTHER') AS product_type,
+                NULLIF(REGEXP_REPLACE(BTRIM(e."Min Output"::text), '[^0-9.-]', '', 'g'), '')::numeric AS min_output,
+                NULLIF(REGEXP_REPLACE(BTRIM(e."Min Input"::text), '[^0-9.-]', '', 'g'), '')::numeric AS min_input
+            FROM public.teffdata e
+            WHERE e."Date"::date BETWEEN :start_date AND :end_date
+              AND NULLIF(BTRIM(e."Model Line"::text), '') IS NOT NULL
+              AND (CAST(:factory AS text) IS NULL OR UPPER(BTRIM(e."FACTORY"::text)) = CAST(:factory AS text))
+        ),
+        totals AS (
+            SELECT produce_date, model_line,
+                   SUM(min_output) / NULLIF(SUM(min_input), 0) AS eff_pct
+            FROM prepared
+            GROUP BY produce_date, model_line
+            HAVING SUM(min_input) <> 0
+        ),
+        product_type_eff AS (
+            SELECT produce_date, model_line, product_type,
+                   SUM(min_output) / NULLIF(SUM(min_input), 0) AS eff_pct
+            FROM prepared
+            GROUP BY produce_date, model_line, product_type
+            HAVING SUM(min_input) <> 0
+        ),
+        product_json AS (
+            SELECT produce_date, model_line,
+                   JSONB_AGG(
+                       JSONB_BUILD_OBJECT('product_type', product_type, 'eff_pct', eff_pct)
+                       ORDER BY eff_pct DESC NULLS LAST, product_type
+                   ) AS product_types
+            FROM product_type_eff
+            GROUP BY produce_date, model_line
+        )
+        SELECT t.produce_date, t.model_line, t.eff_pct,
+               COALESCE(p.product_types, '[]'::jsonb) AS product_types
+        FROM totals t
+        LEFT JOIN product_json p
+          ON p.produce_date = t.produce_date AND p.model_line = t.model_line
+        ORDER BY t.produce_date, t.model_line
     ''')
 
     @router.get("/filters")
