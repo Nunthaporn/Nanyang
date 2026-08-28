@@ -26,6 +26,25 @@
   padding-right: var(--dash-page-x) !important;
 }
 
+/* VVIC and EASY LEAN have extra inner wrappers in their local styles.
+   Remove only their horizontal padding/margins so the outer 24px page edge
+   is the single source of truth, matching all other tabs. */
+.nanyang-content .vvic-page > .vvic-main {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.nanyang-content > main.page > .topbar,
+.nanyang-content > main.page > .easy-topbar {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.nanyang-content > main.page > .dashboard {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
 /* Date controls on Overview / Overview02 / MinVSEff / Model-Line. */
 .nanyang-content .ov-header label,
 .nanyang-content .ov02-header label,
