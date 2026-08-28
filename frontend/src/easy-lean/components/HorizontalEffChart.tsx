@@ -22,7 +22,7 @@ export default function HorizontalEffChart({ data, selectedFactory, onSelect }: 
       const detail=products.length?products.map(x=>{const width=Math.max(5,(Number(x.eff_pct)/maximum)*205);return `<div style="margin-top:9px"><div style="font-size:10px">${esc(x.product_type)}</div><div style="display:flex;align-items:center;gap:9px"><span style="display:block;width:${width}px;max-width:205px;height:15px;background:${colorFor(x.product_type)}"></span><span>${(Number(x.eff_pct)*100).toFixed(1)}%</span></div></div>`}).join(""):"<div style=\"margin-top:8px\">No Product Type data</div>";
       return `<div style="padding:10px;min-width:260px"><div>EFF% by Product Type</div><div style="font-size:10px;margin-top:3px">${esc(row.factory)}</div>${detail}</div>`;
     }},
-    grid: { left: 48, right: 58, top: 28, bottom: 24, containLabel: true },
+    grid: { left: 48, right: 58, top: 36, bottom: 24, containLabel: true },
     xAxis: { type: "value", min: 0, max: 1, axisLabel: { formatter: (value: number) => `${Math.round(value * 100)}%` }, splitLine: { lineStyle: { color: "#e7ebf2" } } },
     yAxis: { type: "category", inverse: true, data: data.map((row) => row.factory), axisTick: { show: false }, axisLine: { show: false } },
     series: [{
@@ -34,8 +34,9 @@ export default function HorizontalEffChart({ data, selectedFactory, onSelect }: 
       markLine:{
         silent:true,
         symbol:"none",
-        lineStyle:{color:"#6686cf",type:"dashed",width:2},
-        label:{show:true,formatter:"Target 65%",position:"insideStartTop",rotate:0,color:"#3561b6",fontWeight:700,fontSize:10,padding:[2,4],backgroundColor:"rgba(255,255,255,.94)",borderRadius:3},
+        z:100,
+        lineStyle:{color:"#3f67d3",type:"dashed",width:2.5,opacity:1},
+        label:{show:true,formatter:"Target 65%",position:"insideStartTop",rotate:0,offset:[0,-5],color:"#2f57b7",fontWeight:700,fontSize:10,padding:[2,5],backgroundColor:"rgba(255,255,255,.96)",borderRadius:3},
         data:[{xAxis:TARGET}]
       }
     }],
