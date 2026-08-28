@@ -28,12 +28,13 @@ const readStoredDates = (): SharedDates => {
 };
 
 const setNativeDateValue = (input: HTMLInputElement, value: string) => {
-  if (!value || input.value === value) return;
+  if (!value || input.value === value) return false;
   const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
   if (setter) setter.call(input, value);
   else input.value = value;
   input.dispatchEvent(new Event("input", { bubbles: true }));
   input.dispatchEvent(new Event("change", { bubbles: true }));
+  return true;
 };
 
 export default function App() {
@@ -41,11 +42,13 @@ export default function App() {
   const [sharedDates, setSharedDates] = useState<SharedDates>(() => readStoredDates());
 
   const applySharedDates = useCallback(() => {
-    if (!sharedDates.startDate || !sharedDates.endDate) return;
+    if (!sharedDates.startDate || !sharedDates.endDate) return false;
     const inputs = Array.from(document.querySelectorAll<HTMLInputElement>(".nanyang-content input[type='date']"));
-    if (inputs.length < 2) return;
-    setNativeDateValue(inputs[0], sharedDates.startDate);
-    setNativeDateValue(inputs[1], sharedDates.endDate);
+    if (inputs.length < 2) return false;
+
+    const startChanged = setNativeDateValue(inputs[0], sharedDates.startDate);
+    const endChanged = setNativeDateValue(inputs[1], sharedDates.endDate);
+    return startChanged || endChanged;
   }, [sharedDates]);
 
   useEffect(() => {
@@ -53,20 +56,28 @@ export default function App() {
     sessionStorage.setItem(DATE_STORAGE_KEY, JSON.stringify(sharedDates));
   }, [sharedDates]);
 
-  // Lazy dashboard components mount after the tab click. Observe the content area so
-  // the shared date range is applied as soon as that dashboard's date inputs appear.
+  // Sync only for a short bounded period after a tab/date change.
+  // Dashboard components load their own filter metadata asynchronously and may set
+  // their default dates once after mount, so a few lightweight retries are enough.
+  // Do NOT observe the whole chart DOM: ECharts mutates it frequently while rendering.
   useEffect(() => {
-    const root = document.querySelector(".nanyang-content");
-    if (!root || !sharedDates.startDate || !sharedDates.endDate) return;
+    if (!sharedDates.startDate || !sharedDates.endDate) return;
 
-    const apply = () => window.requestAnimationFrame(applySharedDates);
-    apply();
-    const observer = new MutationObserver(apply);
-    observer.observe(root, { childList: true, subtree: true });
-    const timer = window.setTimeout(apply, 120);
+    let attempts = 0;
+    const maxAttempts = 12;
+
+    const sync = () => {
+      applySharedDates();
+      attempts += 1;
+      if (attempts >= maxAttempts) window.clearInterval(timer);
+    };
+
+    const first = window.setTimeout(sync, 0);
+    const timer = window.setInterval(sync, 150);
+
     return () => {
-      observer.disconnect();
-      window.clearTimeout(timer);
+      window.clearTimeout(first);
+      window.clearInterval(timer);
     };
   }, [active, sharedDates, applySharedDates]);
 
@@ -80,6 +91,7 @@ export default function App() {
 
     const next = { startDate: inputs[0].value, endDate: inputs[1].value };
     if (!next.startDate || !next.endDate) return;
+
     setSharedDates((current) =>
       current.startDate === next.startDate && current.endDate === next.endDate ? current : next,
     );
