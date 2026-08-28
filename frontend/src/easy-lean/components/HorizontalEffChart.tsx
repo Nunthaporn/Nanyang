@@ -22,11 +22,10 @@ export default function HorizontalEffChart({ data, selectedFactory, onSelect }: 
         const row = data[params.dataIndex];
         if (!row) return "";
         const eff = row.eff_pct ?? 0;
-        const status = eff >= 0.8 ? "Excellent" : eff >= TARGET ? "Above Target" : "Below Target";
-        return `<strong>${row.factory}</strong><br/>EFF: ${(eff * 100).toFixed(1)}%<br/>Target: 65.0%<br/>Status: ${status}`;
+        return `<strong>${row.factory}</strong><br/>EFF%: ${(eff * 100).toFixed(1)}%`;
       },
     },
-    grid: { left: 50, right: 55, top: 15, bottom: 35, containLabel: true },
+    grid: { left: 48, right: 58, top: 12, bottom: 24, containLabel: true },
     xAxis: {
       type: "value",
       min: 0,
@@ -62,13 +61,9 @@ export default function HorizontalEffChart({ data, selectedFactory, onSelect }: 
         label: {
           show: true,
           position: "right",
+          color: "#333",
+          fontSize: 10,
           formatter: (params: any) => `${(Number(params.value) * 100).toFixed(1)}%`,
-        },
-        markLine: {
-          silent: true,
-          symbol: "none",
-          data: [{ xAxis: TARGET, label: { formatter: "Target 65%", position: "end" } }],
-          lineStyle: { type: "dashed", width: 2, color: "#5275d5" },
         },
       },
     ],
@@ -80,13 +75,5 @@ export default function HorizontalEffChart({ data, selectedFactory, onSelect }: 
     if (selected && onSelect) onSelect(String(selected));
   };
 
-  return (
-    <ReactECharts
-      option={option}
-      notMerge
-      lazyUpdate
-      style={{ width: "100%", height: "290px" }}
-      onEvents={{ click: handleClick }}
-    />
-  );
+  return <ReactECharts option={option} notMerge lazyUpdate style={{ width: "100%", height: "290px" }} onEvents={{ click: handleClick }} />;
 }
