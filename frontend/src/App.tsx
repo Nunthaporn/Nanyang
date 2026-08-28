@@ -5,8 +5,8 @@ const OverviewDashboard = lazy(() => import("./overview/OverviewDashboard"));
 const Overview02Dashboard = lazy(() => import("./overview02/Overview02Dashboard"));
 const MinVSEffDashboard = lazy(() => import("./min-vs-eff/MinVSEffDashboard"));
 const ModelLineDashboard = lazy(() => import("./model-line/ModelLineDashboard"));
-const EasyLeanDashboard = lazy(() => import("../../apps/easy-lean/frontend/src/App"));
-const VVICDashboard = lazy(() => import("../../apps/vvic/frontend/src/App"));
+const EasyLeanDashboard = lazy(() => import("./easy-lean/EasyLeanDashboard"));
+const VVICDashboard = lazy(() => import("./vvic/VVICDashboard"));
 
 type DashboardKey = "executive" | "overview" | "overview02" | "min-vs-eff" | "model-line" | "easy-lean" | "vvic";
 
