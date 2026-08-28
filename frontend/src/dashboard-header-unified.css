@@ -1,5 +1,5 @@
 /* Shared dashboard sizing and spacing.
-   Keep date filters, factory tabs, refresh text, headers and chart/card gaps consistent. */
+   Keep date filters, factory tabs, refresh text, headers, page edges and chart/card gaps consistent. */
 
 :root {
   --dash-filter-height: 56px;
@@ -11,6 +11,19 @@
   --dash-refresh-text: #6b7fa3;
   --dash-header-bottom-gap: 14px;
   --dash-chart-gap: 14px;
+  --dash-page-x: 24px;
+}
+
+/* Same left/right page edge on every dashboard tab. */
+.nanyang-content .ex-page,
+.nanyang-content .ov-page,
+.nanyang-content .ov02-page,
+.nanyang-content .mve-page,
+.nanyang-content .ml-page,
+.nanyang-content .vvic-page,
+.nanyang-content > main.page {
+  padding-left: var(--dash-page-x) !important;
+  padding-right: var(--dash-page-x) !important;
 }
 
 /* Date controls on Overview / Overview02 / MinVSEff / Model-Line. */
@@ -186,8 +199,7 @@
   margin-bottom: var(--dash-chart-gap) !important;
 }
 
-/* Model-Line now uses .ml-body as the single spacing owner. Do not add another
-   14px margin to KPI/top-grid or it becomes 28px. */
+/* Model-Line now uses .ml-body as the single spacing owner. */
 .nanyang-content .ml-kpis,
 .nanyang-content .ml-top-grid,
 .nanyang-content .ml-bottom-grid,
@@ -218,6 +230,10 @@
     justify-content: flex-start !important;
     text-align: left !important;
   }
+}
+
+@media (max-width: 760px) {
+  :root { --dash-page-x: 12px; }
 }
 
 @media (max-width: 650px) {
