@@ -60,13 +60,19 @@ function productTypeHtml(row: LatestLineRow) {
 
 export default function LatestLineChart({ data, selectedLine, onSelect }: Props) {
   const sortedData = [...data]
-    .filter((row) => row.eff_pct != null && Number.isFinite(Number(row.eff_pct)) && Number(row.eff_pct) > 0 && String(row.line ?? "").trim() !== "")
+    .filter((row) => {
+      const factory = String(row.factory ?? "").trim().toUpperCase();
+      return FACTORY_ORDER.includes(factory)
+        && row.eff_pct != null
+        && Number.isFinite(Number(row.eff_pct))
+        && Number(row.eff_pct) > 0
+        && String(row.line ?? "").trim() !== "";
+    })
+    .map((row) => ({ ...row, factory: String(row.factory ?? "").trim().toUpperCase() }))
     .sort((a, b) => {
       const ai = FACTORY_ORDER.indexOf(a.factory ?? "");
       const bi = FACTORY_ORDER.indexOf(b.factory ?? "");
-      const ao = ai === -1 ? FACTORY_ORDER.length : ai;
-      const bo = bi === -1 ? FACTORY_ORDER.length : bi;
-      if (ao !== bo) return ao - bo;
+      if (ai !== bi) return ai - bi;
       return String(a.line).localeCompare(String(b.line), undefined, { numeric: true });
     });
 
