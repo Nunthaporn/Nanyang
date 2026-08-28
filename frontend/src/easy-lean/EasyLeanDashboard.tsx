@@ -22,6 +22,19 @@ const fmtNum = (v: number | null | undefined, d = 0) =>
 const fmtM = (v: number | null | undefined) =>
   v == null ? "-" : v >= 1_000_000 ? `${(v / 1_000_000).toFixed(2)}M` : fmtNum(v);
 
+const formatRefresh = (value?: string | null) => {
+  if (!value) return "";
+  return new Intl.DateTimeFormat("th-TH", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(new Date(value));
+};
+
 export default function EasyLeanDashboard() {
   const [meta, setMeta] = useState<FilterMeta | null>(null);
   const [startDate, setStartDate] = useState("");
@@ -93,14 +106,7 @@ export default function EasyLeanDashboard() {
     return () => {
       active = false;
     };
-  }, [
-    startDate,
-    endDate,
-    factory,
-    selectedChartFactory,
-    selectedLine,
-    selectedLineFactory,
-  ]);
+  }, [startDate, endDate, factory, selectedChartFactory, selectedLine, selectedLineFactory]);
 
   const handleFactorySelect = (selected: string) => {
     if (selectedChartFactory === selected) {
@@ -138,61 +144,41 @@ export default function EasyLeanDashboard() {
   };
 
   const year = useMemo(() => (endDate ? endDate.slice(0, 4) : ""), [endDate]);
-  const factories = ["ALL", ...(meta?.factories ?? [])];
+  const factoryOrder = ["G1", "G2", "G3", "G4", "TRM", "EA"];
+  const available = new Set(meta?.factories ?? []);
+  const factories = ["ALL", ...factoryOrder.filter((name) => available.has(name))];
+  const refreshLabel = formatRefresh(summary?.last_refresh);
 
   return (
-    <main className="ez-page">
-      <header className="ez-topbar">
+    <main className="ez-page page">
+      <header className="ez-topbar topbar">
         <h1>EASY LEAN-Line - {year || "Dashboard"}</h1>
 
-        <div className="ez-date-group">
-          <input
-            type="date"
-            value={startDate}
-            min={meta?.min_date ?? undefined}
-            max={endDate || undefined}
-            onChange={(e) => {
-              setStartDate(e.target.value);
-              clearCrossFilter();
-            }}
-          />
-          <input
-            type="date"
-            value={endDate}
-            min={startDate || meta?.min_date || undefined}
-            max={meta?.max_date ?? undefined}
-            onChange={(e) => {
-              setEndDate(e.target.value);
-              clearCrossFilter();
-            }}
-          />
+        <div className="ez-date-group date-group">
+          <input type="date" value={startDate} min={meta?.min_date ?? undefined} max={endDate || undefined}
+            onChange={(e) => { setStartDate(e.target.value); clearCrossFilter(); }} />
+          <input type="date" value={endDate} min={startDate || meta?.min_date || undefined} max={meta?.max_date ?? undefined}
+            onChange={(e) => { setEndDate(e.target.value); clearCrossFilter(); }} />
         </div>
 
-        <div className="ez-tabs">
+        <div className="ez-tabs tabs">
           {factories.map((f) => (
-            <button
-              key={f}
-              type="button"
-              className={factory === f ? "active" : ""}
-              onClick={() => handleFactoryTab(f)}
-            >
-              {f}
-            </button>
+            <button key={f} type="button" className={factory === f ? "active" : ""} onClick={() => handleFactoryTab(f)}>{f}</button>
           ))}
         </div>
 
-        <div className="ez-refresh">
-          <strong>{summary ? new Date(summary.last_refresh).toLocaleString() : ""}</strong>
+        <div className="ez-refresh refresh">
+          <strong data-refresh-label={refreshLabel}>{refreshLabel}</strong>
           <small>Latest Refresh Date</small>
-          <span className={`ez-status ${dbStatus}`}>PostgreSQL {dbStatus}</span>
+          <span className={`ez-status status ${dbStatus}`}>PostgreSQL {dbStatus}</span>
         </div>
       </header>
 
-      <section className="ez-dashboard">
-        {error && <div className="ez-error">{error}</div>}
-        <div className={`ez-content ${loading ? "loading" : ""}`}>
+      <section className="ez-dashboard dashboard">
+        {error && <div className="ez-error error">{error}</div>}
+        <div className={`ez-content content ${loading ? "loading" : ""}`}>
           {(selectedChartFactory || selectedLine) && (
-            <div className="ez-cross-filter-bar">
+            <div className="ez-cross-filter-bar cross-filter-bar">
               <span>Selected:</span>
               {selectedChartFactory && <strong>Factory {selectedChartFactory}</strong>}
               {selectedLine && <strong>Line {selectedLine}</strong>}
@@ -200,7 +186,7 @@ export default function EasyLeanDashboard() {
             </div>
           )}
 
-          <div className="ez-kpis">
+          <div className="ez-kpis kpis">
             <KpiCard label="EFF% EZLcard" value={fmtPct(summary?.eff_ezlcard)} />
             <KpiCard label="Min Produce" value={fmtM(summary?.min_produce)} />
             <KpiCard label="PPH" value={fmtNum(summary?.pph, 2)} />
@@ -209,61 +195,25 @@ export default function EasyLeanDashboard() {
             <KpiCard label="CountLine" value={fmtNum(summary?.count_line)} />
           </div>
 
-          <div className="ez-grid ez-top-charts">
-            <section className="ez-panel">
+          <div className="ez-grid grid ez-top-charts top-charts">
+            <section className="ez-panel panel">
               <h2>%EFF Monthly by Line</h2>
-              {monthly.length ? (
-                <HorizontalEffChart
-                  data={monthly}
-                  selectedFactory={selectedChartFactory}
-                  onSelect={handleFactorySelect}
-                />
-              ) : (
-                <div className="ez-empty">No data</div>
-              )}
+              {monthly.length ? <HorizontalEffChart data={monthly} selectedFactory={selectedChartFactory} onSelect={handleFactorySelect} /> : <div className="ez-empty empty">No data</div>}
             </section>
-
-            <section className="ez-panel">
+            <section className="ez-panel panel">
               <h2>EFF Last date by Line</h2>
-              {latest.length ? (
-                <LatestLineChart
-                  data={latest}
-                  selectedLine={selectedLine}
-                  onSelect={handleLineSelect}
-                />
-              ) : (
-                <div className="ez-empty">No data</div>
-              )}
+              {latest.length ? <LatestLineChart data={latest} selectedLine={selectedLine} onSelect={handleLineSelect} /> : <div className="ez-empty empty">No data</div>}
             </section>
           </div>
 
-          <div className="ez-grid ez-bottom-charts">
-            <section className="ez-panel">
+          <div className="ez-grid grid ez-bottom-charts bottom-charts">
+            <section className="ez-panel panel">
               <h2>EFF% by Year, Month and EasyLean Fac</h2>
-              {monthlyFactory.length ? (
-                <RibbonLikeChart
-                  data={monthlyFactory}
-                  mode="monthly"
-                  selectedFactory={selectedChartFactory}
-                  onFactorySelect={handleFactorySelect}
-                />
-              ) : (
-                <div className="ez-empty">No data</div>
-              )}
+              {monthlyFactory.length ? <RibbonLikeChart data={monthlyFactory} mode="monthly" selectedFactory={selectedChartFactory} onFactorySelect={handleFactorySelect} /> : <div className="ez-empty empty">No data</div>}
             </section>
-
-            <section className="ez-panel">
+            <section className="ez-panel panel">
               <h2>Last 10Days EFF% of EasyLean by Factory</h2>
-              {last10.length ? (
-                <RibbonLikeChart
-                  data={last10}
-                  mode="daily"
-                  selectedFactory={selectedChartFactory}
-                  onFactorySelect={handleFactorySelect}
-                />
-              ) : (
-                <div className="ez-empty">No data</div>
-              )}
+              {last10.length ? <RibbonLikeChart data={last10} mode="daily" selectedFactory={selectedChartFactory} onFactorySelect={handleFactorySelect} /> : <div className="ez-empty empty">No data</div>}
             </section>
           </div>
         </div>
