@@ -44,7 +44,7 @@ function CustomerBarChart({ rows, selected, onSelect }: { rows: CustomerRow[]; s
       trigger: "item",
       formatter: (p: any) => {
         const row = safeRows[p.dataIndex];
-        return `<b>Cust: ${row?.customer ?? p.name ?? ""}</b><br/>MTD EFF%: ${Number(p.value).toFixed(2)}%`;
+        return `MTD EFF%: ${Number(p.value).toFixed(2)}%<br/>Cust: ${row?.customer ?? p.name ?? ""}`;
       },
     },
     xAxis: { type: "value", min: 0, max: 110, show: false },
