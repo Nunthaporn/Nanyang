@@ -153,7 +153,7 @@ WITH prepared AS (
         UPPER(BTRIM(mf."FACTORY"::text)) AS factory,
         e."Date"::date AS produce_date,
         NULLIF(BTRIM(e."EasyLean Line"::text), '') AS display_line,
-        COALESCE(NULLIF(BTRIM(e."PD_Type"::text), ''), 'UNKNOWN') AS product_type,
+        COALESCE(NULLIF(BTRIM(e."PD_Type"::text), ''), 'OTHER') AS product_type,
         NULLIF(REPLACE(BTRIM(e."Min Output"::text), ',', ''), '')::numeric AS min_output_num,
         NULLIF(REPLACE(BTRIM(e."Min Input"::text), ',', ''), '')::numeric AS min_input_num
     FROM public.teffdata e
@@ -207,7 +207,6 @@ product_type_eff AS (
         product_type,
         SUM(min_output_num) / NULLIF(SUM(min_input_num), 0) AS eff_pct
     FROM latest_data
-    WHERE product_type <> 'UNKNOWN'
     GROUP BY factory, display_line, product_type
 ),
 product_json AS (
