@@ -103,7 +103,7 @@ export default function LatestLineChart({ data, selectedLine, onSelect }: Props)
         return row ? productTypeHtml(row) : "";
       },
     },
-    grid: { left: 48, right: 22, top: 40, bottom: 62, containLabel: true },
+    grid: { left: 48, right: 22, top: 48, bottom: 62, containLabel: true },
     xAxis: [
       {
         type: "category",
@@ -169,8 +169,9 @@ export default function LatestLineChart({ data, selectedLine, onSelect }: Props)
         markLine: {
           silent: true,
           symbol: "none",
-          lineStyle: { color: "#6686cf", type: "dashed", width: 2 },
-          label: { show: true, formatter: "Target 65%", position: "end", distance: 2, offset: [-6, -8], color: "#3561b6", fontWeight: 700, fontSize: 10, padding: [2, 4], backgroundColor: "rgba(255,255,255,.94)", borderRadius: 3 },
+          z: 100,
+          lineStyle: { color: "#3f67d3", type: "dashed", width: 2.5, opacity: 1 },
+          label: { show: true, formatter: "Target 65%", position: "insideEndTop", distance: 4, color: "#2f57b7", fontWeight: 700, fontSize: 10, padding: [2, 5], backgroundColor: "rgba(255,255,255,.96)", borderRadius: 3 },
           data: [{ yAxis: TARGET }],
         },
       },
