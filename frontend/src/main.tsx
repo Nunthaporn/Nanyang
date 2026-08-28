@@ -5,6 +5,7 @@ import "./shell.css";
 import "./vvic-overrides.css";
 import "./easy-lean-overrides.css";
 import "./easy-lean-title-position.css";
+import "./dashboard-header-unified.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
