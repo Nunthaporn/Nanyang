@@ -1,6 +1,0 @@
-[submodule "apps/vvic"]
-	path = apps/vvic
-	url = https://github.com/Nunthaporn/VVIC.git
-[submodule "apps/easy-lean"]
-	path = apps/easy-lean
-	url = https://github.com/Nunthaporn/easy-lean-dashboard.git
