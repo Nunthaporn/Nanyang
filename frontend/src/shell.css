@@ -11,6 +11,12 @@ body { min-width: 320px; }
 .nanyang-content { min-height: calc(100vh - 62px); }
 .nanyang-loading { padding: 48px; text-align: center; font: 600 15px system-ui, sans-serif; color: #475569; }
 
+/* Use the same serif title face as Executive Summary on every dashboard tab.
+   This changes title typography only; each page keeps its own size/layout. */
+.nanyang-content h1 {
+  font-family: Georgia, "Times New Roman", serif !important;
+}
+
 /* =========================================================
    VVIC unified layout overrides
    ========================================================= */
