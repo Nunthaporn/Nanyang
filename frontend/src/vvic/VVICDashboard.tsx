@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactECharts from "echarts-for-react";
-import { BarChart3, RefreshCcw } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 import { getJSON } from "./api";
 import { customerOption, factoryOption, lineOption } from "./charts";
 import type { Customer, CustomerFactory, Factory, FactoryProduct, Filters, Month, Summary } from "./types";
@@ -65,12 +65,11 @@ export default function VVICDashboard(){
 
   return <div className="vvic-page"><main className="vvic-main">
     <header className="vvic-header">
-      <div><h1>VVIC CUSTOMER</h1></div>
+      <div><h1>VVIC</h1></div>
       <label>CUSTOMER TYPE<select value={f.customer_type} onChange={e=>{clear();setF(v=>({...v,customer_type:e.target.value}));}}><option value="VVIC">VVIC</option><option value="NON-VVIC">NON-VVIC</option></select></label>
       <label>START DATE<input type="date" value={f.start_date} onChange={e=>{clear();setF(v=>({...v,start_date:e.target.value}));}}/></label>
       <label>END DATE<input type="date" value={f.end_date} onChange={e=>{clear();setF(v=>({...v,end_date:e.target.value}));}}/></label>
       <div className="vvic-factories"><button className={!f.factory.length?"sel":""} onClick={()=>selectFactory("ALL")}>ALL</button>{FACTORIES.map(x=><button key={x} className={f.factory[0]===x?"sel":""} onClick={()=>selectFactory(x)}>{x}</button>)}</div>
-      <button className="vvic-refresh-data" onClick={()=>setRefresh(x=>x+1)}><RefreshCcw size={16}/></button>
     </header>
 
     <div className="vvic-status"><span className="vvic-dot"/>{filterLabel}{filterLabel&&<button className="vvic-clear-filter" onClick={clear}>CLEAR SELECTION</button>}<span className="vvic-refresh-time">REFRESH: {summary?new Date(summary.last_refresh).toLocaleString("th-TH"):"—"}</span></div>
