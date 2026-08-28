@@ -1,5 +1,5 @@
 /* Shared dashboard header sizing.
-   Keep date filters, factory tabs and refresh text visually consistent across dashboard pages. */
+   Keep date filters, factory tabs, refresh text and vertical spacing consistent across dashboard pages. */
 
 :root {
   --dash-filter-height: 56px;
@@ -9,10 +9,11 @@
   --dash-filter-text: #304d7a;
   --dash-filter-active: #0757d7;
   --dash-refresh-text: #6b7fa3;
+  --dash-header-bottom-gap: 14px;
 }
 
 /* Date controls on Overview / Overview02 / MinVSEff / Model-Line.
-   Their outer height now exactly matches the factory tab bar. */
+   Their outer height exactly matches the factory tab bar. */
 .nanyang-content .ov-header label,
 .nanyang-content .ov02-header label,
 .nanyang-content .mve-date-card,
@@ -132,7 +133,8 @@
   justify-content: center !important;
 }
 
-/* Use the same 12px gap between header controls on all dashboard pages. */
+/* Same horizontal spacing between header controls. */
+.nanyang-content .ex-header,
 .nanyang-content .ov-header,
 .nanyang-content .ov02-header,
 .nanyang-content .mve-filter-row,
@@ -141,6 +143,34 @@
 .nanyang-content > main.page > .topbar {
   gap: 12px !important;
   align-items: center !important;
+}
+
+/* Same vertical spacing from header controls to the first dashboard content.
+   Overview02 is the reference: 14px. */
+.nanyang-content .ex-header,
+.nanyang-content .ov-header,
+.nanyang-content .ov02-header,
+.nanyang-content .mve-filter-row,
+.nanyang-content .ml-header,
+.nanyang-content .vvic-header,
+.nanyang-content > main.page > .topbar {
+  margin-bottom: var(--dash-header-bottom-gap) !important;
+}
+
+/* VVIC used an empty status row as a spacer. Remove that extra spacer so the
+   header-to-content gap is the same 14px as the other tabs. Keep the row only
+   when a cross-filter selection is actually displayed. */
+.nanyang-content .vvic-status:empty {
+  display: none !important;
+}
+.nanyang-content .vvic-status:not(:empty) {
+  margin: 0 0 var(--dash-header-bottom-gap) !important;
+}
+
+/* EASY LEAN previously carried its spacing on the dashboard itself. Move that
+   spacing to the shared header rule above to avoid a double gap. */
+.nanyang-content > main.page > .dashboard {
+  margin-top: 0 !important;
 }
 
 @media (max-width: 1180px) {
