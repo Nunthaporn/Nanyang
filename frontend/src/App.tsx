@@ -51,16 +51,11 @@ export default function App() {
     const endNeedsChange = inputs[1].value !== sharedDates.endDate;
     if (!startNeedsChange && !endNeedsChange) return false;
 
-    // Programmatic synchronization must not be captured as a new user filter.
-    // Otherwise the first changed input can combine with the other dashboard's
-    // default date and overwrite the shared range with a mixed pair.
     syncingDatesRef.current = true;
     try {
-      // Set both controlled inputs during the same protected sync window.
       if (startNeedsChange) setNativeDateValue(inputs[0], sharedDates.startDate);
       if (endNeedsChange) setNativeDateValue(inputs[1], sharedDates.endDate);
     } finally {
-      // React's synthetic change handlers run synchronously for these dispatched events.
       syncingDatesRef.current = false;
     }
     return true;
@@ -71,19 +66,34 @@ export default function App() {
     sessionStorage.setItem(DATE_STORAGE_KEY, JSON.stringify(sharedDates));
   }, [sharedDates]);
 
-  // A newly mounted dashboard first loads its own filter metadata and may briefly
-  // write its default date range. Re-apply the shared range for a short bounded
-  // window so the shared filter wins after initialization, without observing ECharts DOM.
+  // Overview initializes its own /filters request later than the other tabs and can
+  // overwrite the shared range after the first sync. Keep a lightweight bounded
+  // re-apply window for longer on Overview only; no DOM observer is used.
   useEffect(() => {
     if (!sharedDates.startDate || !sharedDates.endDate) return;
 
     let attempts = 0;
-    const maxAttempts = 16;
+    let stableMatches = 0;
+    const maxAttempts = active === "overview" ? 48 : 18;
+    const requiredStableMatches = active === "overview" ? 8 : 3;
 
     const sync = () => {
-      applySharedDates();
+      const inputs = Array.from(document.querySelectorAll<HTMLInputElement>(".nanyang-content input[type='date']"));
+      const matches = inputs.length >= 2
+        && inputs[0].value === sharedDates.startDate
+        && inputs[1].value === sharedDates.endDate;
+
+      if (matches) {
+        stableMatches += 1;
+      } else {
+        stableMatches = 0;
+        applySharedDates();
+      }
+
       attempts += 1;
-      if (attempts >= maxAttempts) window.clearInterval(timer);
+      if (attempts >= maxAttempts || stableMatches >= requiredStableMatches) {
+        window.clearInterval(timer);
+      }
     };
 
     const first = window.setTimeout(sync, 0);
