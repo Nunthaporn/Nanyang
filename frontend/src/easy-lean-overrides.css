@@ -1,5 +1,5 @@
 /* Nanyang-only Easy Lean overrides.
-   Keep Easy Lean visually aligned with the VVIC header/filter language. */
+   Keep Easy Lean visually aligned with the shared dashboard header/filter language. */
 
 .nanyang-content > main.page {
   margin: 0 !important;
@@ -9,14 +9,19 @@
   background: #eef3f7 !important;
 }
 
+/* Match Overview / Overview02 / MinVSEff / Model-Line header proportions.
+   EASY LEAN keeps both dates inside one wrapper, so 392px = 190 + 12 + 190. */
 .nanyang-content > main.page > .topbar,
 .nanyang-content > main.page > .easy-topbar {
   margin: 0 !important;
   min-height: 0 !important;
   height: auto !important;
-  padding: 18px 28px 4px !important;
+  padding-top: 18px !important;
+  padding-bottom: 4px !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
   display: grid !important;
-  grid-template-columns: minmax(300px, 1fr) 370px minmax(520px, 1.55fr) 190px !important;
+  grid-template-columns: 280px 392px minmax(520px, 1fr) max-content !important;
   align-items: center !important;
   gap: 12px !important;
   background: transparent !important;
@@ -25,7 +30,9 @@
 
 .nanyang-content > main.page > .topbar h1,
 .nanyang-content > main.page .easy-title-wrap h1 {
-  margin: 0 !important;
+  margin-top: 0 !important;
+  margin-right: 0 !important;
+  margin-bottom: 0 !important;
   color: #172033 !important;
   font-family: Georgia, "Times New Roman", serif !important;
   font-size: 28px !important;
@@ -44,9 +51,10 @@
 .nanyang-content > main.page > .topbar .date-group {
   position: relative !important;
   display: grid !important;
-  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  grid-template-columns: 190px 190px !important;
   gap: 12px !important;
-  width: 100% !important;
+  width: 392px !important;
+  min-width: 392px !important;
 }
 
 .nanyang-content > main.page > .topbar .date-group::before,
@@ -63,11 +71,11 @@
 }
 
 .nanyang-content > main.page > .topbar .date-group::before { content: "START DATE"; left: 14px; }
-.nanyang-content > main.page > .topbar .date-group::after { content: "END DATE"; left: calc(50% + 20px); }
+.nanyang-content > main.page > .topbar .date-group::after { content: "END DATE"; left: 216px; }
 
 .nanyang-content > main.page > .topbar .date-group input {
-  width: 100% !important;
-  min-width: 0 !important;
+  width: 190px !important;
+  min-width: 190px !important;
   height: 56px !important;
   padding: 20px 12px 5px 14px !important;
   border: 1px solid #cbd9e8 !important;
@@ -83,7 +91,8 @@
   display: flex !important;
   align-items: stretch !important;
   gap: 0 !important;
-  min-width: 0 !important;
+  min-width: 520px !important;
+  width: 100% !important;
   height: 56px !important;
   padding: 4px !important;
   border-radius: 12px !important;
@@ -100,7 +109,7 @@
   background: transparent !important;
   color: #304d7a !important;
   font-size: 14px !important;
-  font-weight: 500 !important;
+  font-weight: 600 !important;
   box-shadow: none !important;
   order: initial !important;
 }
@@ -112,11 +121,12 @@
   box-shadow: 0 1px 4px rgba(48, 78, 120, .14) !important;
 }
 
-/* Keep the refresh timestamp vertically centered on the same row as the
-   factory tabs, matching the VVIC header. */
+/* Refresh starts exactly one shared 12px grid gap after the factory group. */
 .nanyang-content > main.page > .topbar .refresh {
-  min-width: 0 !important;
+  min-width: max-content !important;
+  width: max-content !important;
   height: 56px !important;
+  margin: 0 !important;
   align-self: center !important;
   text-align: right !important;
   display: flex !important;
@@ -178,8 +188,19 @@
 @media (max-width: 1450px) {
   .nanyang-content > main.page > .topbar,
   .nanyang-content > main.page > .easy-topbar {
-    padding: 16px 20px 4px !important;
-    grid-template-columns: minmax(260px, 1fr) 330px minmax(430px, 1.45fr) 170px !important;
+    padding-top: 16px !important;
+    padding-bottom: 4px !important;
+    grid-template-columns: 240px 352px minmax(430px, 1fr) max-content !important;
+  }
+  .nanyang-content > main.page > .topbar .date-group {
+    grid-template-columns: 170px 170px !important;
+    width: 352px !important;
+    min-width: 352px !important;
+  }
+  .nanyang-content > main.page > .topbar .date-group::after { left: 196px; }
+  .nanyang-content > main.page > .topbar .date-group input {
+    width: 170px !important;
+    min-width: 170px !important;
   }
   .nanyang-content > main.page > .dashboard { margin: 12px 20px 24px !important; }
 }
@@ -191,6 +212,17 @@
     grid-template-columns: 1fr !important;
     align-items: stretch !important;
   }
+  .nanyang-content > main.page > .topbar .date-group {
+    width: 100% !important;
+    min-width: 0 !important;
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .nanyang-content > main.page > .topbar .date-group input {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+  .nanyang-content > main.page > .topbar .date-group::after { left: calc(50% + 20px); }
+  .nanyang-content > main.page > .topbar .tabs { min-width: 0 !important; }
   .nanyang-content > main.page > .topbar .refresh { text-align: left !important; align-self: start !important; align-items: flex-start !important; }
 }
 
