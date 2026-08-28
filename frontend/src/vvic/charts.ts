@@ -18,8 +18,8 @@ export const lineOption=(d:Month[],selectedMonth:string|null):EChartsOption=>({
   yAxis:{type:"value",axisLabel:{formatter:(v:number)=>`${Math.round(v*100)}%`},splitLine:{lineStyle:{type:"dashed",color:"#d9e4f2"}}},
   dataZoom:[{type:"inside"},{type:"slider",height:13,bottom:8}],
   series:[
-    {name:"VVIC",type:"line",smooth:true,connectNulls:false,symbolSize:10,lineStyle:{opacity:selectedMonth?.28:1},data:d.map(x=>({value:x.vvic,itemStyle:{opacity:!selectedMonth||x.month===selectedMonth?1:.2}})),label:{show:true,formatter:(x:any)=>pct(x.value),fontWeight:"bold",color:"#0586a7"}},
-    {name:"NON-VVIC",type:"line",smooth:true,connectNulls:false,symbolSize:9,lineStyle:{opacity:selectedMonth?.28:1},data:d.map(x=>({value:x.non_vvic,itemStyle:{opacity:!selectedMonth||x.month===selectedMonth?1:.2}})),label:{show:true,formatter:(x:any)=>pct(x.value),color:"#2e5db2"}}
+    {name:"VVIC",type:"line",smooth:true,connectNulls:false,symbolSize:10,lineStyle:{opacity:selectedMonth ? .28 : 1},data:d.map(x=>({value:x.vvic,itemStyle:{opacity:!selectedMonth||x.month===selectedMonth?1:.2}})),label:{show:true,formatter:(x:any)=>pct(x.value),fontWeight:"bold",color:"#0586a7"}},
+    {name:"NON-VVIC",type:"line",smooth:true,connectNulls:false,symbolSize:9,lineStyle:{opacity:selectedMonth ? .28 : 1},data:d.map(x=>({value:x.non_vvic,itemStyle:{opacity:!selectedMonth||x.month===selectedMonth?1:.2}})),label:{show:true,formatter:(x:any)=>pct(x.value),color:"#2e5db2"}}
   ]
 });
 
@@ -30,7 +30,7 @@ export const factoryOption=(d:Factory[],products:FactoryProduct[],selected:{mont
     const month=months[params.dataIndex],row=api.value(1),eff=api.value(2),nextRow=api.value(3);if(row==null)return null;
     const point=api.coord([month,row]),band=api.size([1,0])[0],width=band*.72,height=Math.min(25,Math.abs(api.size([0,1])[1])*.72),x=point[0]-width/2,y=point[1]-height/2;
     const active=!selected||(month===selected.month&&(!selected.factory||factory===selected.factory));const children:any[]=[];
-    if(nextRow!=null&&params.dataIndex<months.length-1){const next=api.coord([months[params.dataIndex+1],nextRow]),x1=x+width,x2=next[0]-width/2,y2=next[1];children.push({type:"path",shape:{pathData:`M${x1},${point[1]-height/2} C${(x1+x2)/2},${point[1]-height/2} ${(x1+x2)/2},${y2-height/2} ${x2},${y2-height/2} L${x2},${y2+height/2} C${(x1+x2)/2},${y2+height/2} ${(x1+x2)/2},${point[1]+height/2} ${x1},${point[1]+height/2} Z`},style:{fill:colors[factory],opacity:selected?(selected.factory&&selected.factory!==factory?.14:.35):.72}});}
+    if(nextRow!=null&&params.dataIndex<months.length-1){const next=api.coord([months[params.dataIndex+1],nextRow]),x1=x+width,x2=next[0]-width/2,y2=next[1];children.push({type:"path",shape:{pathData:`M${x1},${point[1]-height/2} C${(x1+x2)/2},${point[1]-height/2} ${(x1+x2)/2},${y2-height/2} ${x2},${y2-height/2} L${x2},${y2+height/2} C${(x1+x2)/2},${y2+height/2} ${(x1+x2)/2},${point[1]+height/2} ${x1},${point[1]+height/2} Z`},style:{fill:colors[factory],opacity:selected ? (selected.factory&&selected.factory!==factory ? .14 : .35) : .72}});}
     children.push({type:"rect",shape:{x,y,width,height,r:2},style:{fill:colors[factory],opacity:active?1:.2}});
     if(eff!=null&&Number.isFinite(Number(eff)))children.push({type:"text",style:{x:point[0],y:point[1],text:pct(Number(eff)),fill:"#07162e",font:"700 11px Inter, Segoe UI, sans-serif",textAlign:"center",textVerticalAlign:"middle",opacity:active?1:.3}});
     return{type:"group",children};},data:months.map((m,i)=>{const item=d.find(x=>x.month===m&&x.factory===factory),next=months[i+1];return{name:m,value:[m,rank.get(`${m}|${factory}`)??null,item?.eff_pct??null,next?rank.get(`${next}|${factory}`)??null:null]};}),encode:{x:0,y:1}}));
