@@ -109,7 +109,8 @@ export default function LatestLineChart({ data, selectedLine, onSelect }: Props)
         return row ? productTypeHtml(row) : "";
       },
     },
-    grid: { left: 48, right: 22, top: 48, bottom: 62, containLabel: true },
+    // Extra room on the right is reserved for the Target label so it never overlaps EA bars.
+    grid: { left: 48, right: 86, top: 48, bottom: 62, containLabel: true },
     xAxis: [
       {
         type: "category",
@@ -194,8 +195,10 @@ export default function LatestLineChart({ data, selectedLine, onSelect }: Props)
           label: {
             show: true,
             formatter: "Target 65%",
-            position: "insideEndTop",
-            distance: 4,
+            position: "end",
+            distance: 6,
+            align: "left",
+            verticalAlign: "middle",
             color: "#2f57b7",
             fontWeight: 700,
             fontSize: 10,
