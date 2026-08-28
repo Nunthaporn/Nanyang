@@ -112,17 +112,19 @@
   box-shadow: 0 1px 4px rgba(48, 78, 120, .14) !important;
 }
 
-/* Match VVIC: show only one compact refresh timestamp. The component still
-   keeps DB status internally; it is simply not rendered in this unified header. */
+/* Keep the refresh timestamp vertically centered on the same row as the
+   factory tabs, matching the VVIC header. */
 .nanyang-content > main.page > .topbar .refresh {
   min-width: 0 !important;
-  align-self: end !important;
+  height: 56px !important;
+  align-self: center !important;
   text-align: right !important;
   display: flex !important;
   flex-direction: column !important;
-  justify-content: flex-end !important;
+  justify-content: center !important;
+  align-items: flex-end !important;
   gap: 0 !important;
-  padding: 0 2px 2px 0 !important;
+  padding: 0 2px 0 0 !important;
 }
 
 .nanyang-content > main.page > .topbar .refresh strong {
@@ -189,7 +191,7 @@
     grid-template-columns: 1fr !important;
     align-items: stretch !important;
   }
-  .nanyang-content > main.page > .topbar .refresh { text-align: left !important; align-self: start !important; }
+  .nanyang-content > main.page > .topbar .refresh { text-align: left !important; align-self: start !important; align-items: flex-start !important; }
 }
 
 @media (max-width: 650px) {
