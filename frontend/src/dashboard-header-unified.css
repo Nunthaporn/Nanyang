@@ -15,7 +15,6 @@
   --dash-title-x: 48px;
 }
 
-/* Same left/right page edge on every dashboard tab. */
 .nanyang-content .ex-page,
 .nanyang-content .ov-page,
 .nanyang-content .ov02-page,
@@ -28,7 +27,6 @@
   box-sizing: border-box !important;
 }
 
-/* Keep every visible dashboard title on the same left edge. */
 .nanyang-content .ex-header h1,
 .nanyang-content .ov-header h1,
 .nanyang-content .ov02-header h1,
@@ -42,15 +40,28 @@
   margin-left: var(--dash-title-x) !important;
 }
 
-/* Executive title should not show a secondary "Data as of ..." line. */
+/* Simplified dashboard titles: remove dynamic year / suffix from display. */
+.nanyang-content .ml-header h1,
+.nanyang-content > main.page > .topbar h1,
+.nanyang-content > main.page > .easy-topbar h1 {
+  font-size: 0 !important;
+}
+.nanyang-content .ml-header h1::after {
+  content: "Model-Line";
+  font-size: 28px;
+}
+.nanyang-content > main.page > .topbar h1::after,
+.nanyang-content > main.page > .easy-topbar h1::after {
+  content: "EASY LEAN";
+  font-size: 28px;
+}
+
 .nanyang-content .ex-header > div > span,
 .nanyang-content .ex-header > div > small,
 .nanyang-content .ex-header .ex-data-as-of {
   display: none !important;
 }
 
-/* Use one desktop header geometry for Overview-family pages.
-   This makes START/END, Factory tabs and REFRESH land on the same x positions. */
 @media (min-width: 1181px) {
   .nanyang-content .ov-header,
   .nanyang-content .ov02-header,
@@ -58,12 +69,9 @@
   .nanyang-content .ml-header {
     grid-template-columns: 280px 190px 190px minmax(520px, 1fr) max-content !important;
   }
-
-  /* VVIC has one extra Customer Type control before START/END. */
   .nanyang-content .vvic-header {
     grid-template-columns: 280px 180px 190px 190px minmax(520px, 1fr) max-content !important;
   }
-
   .nanyang-content .ov-refresh,
   .nanyang-content .ov02-refresh,
   .nanyang-content .mve-refresh,
@@ -78,15 +86,12 @@
   }
 }
 
-/* EASY LEAN previously had width:100% plus outer horizontal padding, which
-   made the real width 100% + 48px and pushed content off the right edge. */
 .nanyang-content > main.page {
   width: auto !important;
   max-width: 100% !important;
   overflow-x: clip !important;
 }
 
-/* VVIC and EASY LEAN have extra inner wrappers in their local styles. */
 .nanyang-content .vvic-page > .vvic-main {
   padding-left: 0 !important;
   padding-right: 0 !important;
@@ -107,7 +112,6 @@
   box-sizing: border-box !important;
 }
 
-/* Date controls on Overview / Overview02 / MinVSEff / Model-Line. */
 .nanyang-content .ov-header label,
 .nanyang-content .ov02-header label,
 .nanyang-content .mve-date-card,
@@ -142,7 +146,6 @@
   box-sizing: border-box !important;
 }
 
-/* Factory/tab containers */
 .nanyang-content .ov-factories,
 .nanyang-content .ov02-factories,
 .nanyang-content .mve-factories,
@@ -161,7 +164,6 @@
   box-sizing: border-box !important;
 }
 
-/* Factory/tab buttons */
 .nanyang-content .ov-factories button,
 .nanyang-content .ov02-factories button,
 .nanyang-content .mve-factories button,
@@ -196,7 +198,6 @@
   box-shadow: 0 1px 4px rgba(48, 78, 120, .14) !important;
 }
 
-/* Refresh text */
 .nanyang-content .ov-refresh,
 .nanyang-content .ov02-refresh,
 .nanyang-content .mve-refresh,
@@ -227,7 +228,6 @@
   justify-content: center !important;
 }
 
-/* Same horizontal spacing between header controls. */
 .nanyang-content .ex-header,
 .nanyang-content .ov-header,
 .nanyang-content .ov02-header,
@@ -241,7 +241,6 @@
   align-items: center !important;
 }
 
-/* Same vertical spacing from header controls to first content. */
 .nanyang-content .ex-header,
 .nanyang-content .ov-header,
 .nanyang-content .ov02-header,
@@ -256,7 +255,6 @@
 .nanyang-content .vvic-status:not(:empty) { margin: 0 0 var(--dash-header-bottom-gap) !important; }
 .nanyang-content > main.page > .dashboard { margin-top: 0 !important; }
 
-/* Page-level chart/card gaps: exactly one 14px spacing layer. */
 .nanyang-content .ex-grid,
 .nanyang-content .ov-grid,
 .nanyang-content .ov02-grid,
@@ -276,13 +274,11 @@
   column-gap: var(--dash-chart-gap) !important;
 }
 
-/* Containers that still separate rows with margins instead of a parent CSS gap. */
 .nanyang-content .ov-kpis,
 .nanyang-content .vvic-kpis {
   margin-bottom: var(--dash-chart-gap) !important;
 }
 
-/* Model-Line now uses .ml-body as the single spacing owner. */
 .nanyang-content .ml-kpis,
 .nanyang-content .ml-top-grid,
 .nanyang-content .ml-bottom-grid,
@@ -291,7 +287,6 @@
   margin-bottom: 0 !important;
 }
 
-/* Remove duplicate margins where a parent already supplies the 14px gap. */
 .nanyang-content .vvic-trend,
 .nanyang-content .vvic-factory-card,
 .nanyang-content .vvic-customer-card,
