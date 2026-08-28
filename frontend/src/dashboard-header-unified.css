@@ -24,6 +24,15 @@
 .nanyang-content > main.page {
   padding-left: var(--dash-page-x) !important;
   padding-right: var(--dash-page-x) !important;
+  box-sizing: border-box !important;
+}
+
+/* EASY LEAN previously had width:100% plus outer horizontal padding, which
+   made the real width 100% + 48px and pushed content off the right edge. */
+.nanyang-content > main.page {
+  width: auto !important;
+  max-width: 100% !important;
+  overflow-x: clip !important;
 }
 
 /* VVIC and EASY LEAN have extra inner wrappers in their local styles.
@@ -38,11 +47,15 @@
 .nanyang-content > main.page > .easy-topbar {
   padding-left: 0 !important;
   padding-right: 0 !important;
+  box-sizing: border-box !important;
 }
 
 .nanyang-content > main.page > .dashboard {
   margin-left: 0 !important;
   margin-right: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 /* Date controls on Overview / Overview02 / MinVSEff / Model-Line. */
