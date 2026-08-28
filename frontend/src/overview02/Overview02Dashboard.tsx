@@ -164,12 +164,18 @@ export default function Overview02Dashboard() {
     };
   }, [data, crossFactory]);
 
-  const barOption = (rows: Array<{ name: string; eff: number; pph?: number | null }>, withPph: boolean, scroll = false, selected?: string | null) => ({
+  const barOption = (
+    rows: Array<{ name: string; eff: number; pph?: number | null }>,
+    withPph: boolean,
+    scroll = false,
+    selected?: string | null,
+    tooltipName = "NAME",
+  ) => ({
     animationDuration: 350,
     grid: { left: 54, right: 64, top: 46, bottom: scroll ? 72 : 62 },
     tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, formatter: (items: any[]) => {
       const p = items[0]; const r = rows[p.dataIndex];
-      return `<b>${r?.name ?? ""}</b><br/>MTD EFF%: ${pct(r?.eff, 2)}${withPph && r?.pph != null ? `<br/>PPH: ${Number(r.pph).toFixed(2)}` : ""}`;
+      return `<b>${tooltipName}: ${r?.name ?? ""}</b><br/>MTD EFF%: ${pct(r?.eff, 2)}`;
     } },
     xAxis: { type: "category", data: rows.map((x) => x.name), axisLabel: { interval: 0, rotate: rows.length > 8 ? 48 : 38, fontSize: 10, width: 80, overflow: "truncate" }, axisTick: { show: false } },
     yAxis: { type: "value", min: 0, axisLabel: { formatter: (v: number) => `${Math.round(v * 100)}%` }, splitLine: { lineStyle: { color: "#dce6f1", type: "dashed" } } },
@@ -200,9 +206,9 @@ export default function Overview02Dashboard() {
       {error && <div className="ov02-error">{error}</div>}
       <div className={loading ? "ov02-grid loading" : "ov02-grid"}>
         <section className="ov02-card"><h2>Daily EFF% by FACTORY</h2><ReactECharts option={ribbonOption} notMerge style={{ height: 295 }} onEvents={{ click: (p: any) => p.seriesName && toggleFactory(p.seriesName) }} /></section>
-        <section className="ov02-card"><h2>MTD Eff% &amp; PPH by VVIC Product Type</h2><ReactECharts option={barOption(productRows, true, false, crossGmtType)} notMerge style={{ height: 295 }} onEvents={{ click: (p: any) => { const r = productRows[p.dataIndex]; if (r) toggleGmt(r.name); } }} /></section>
-        <section className="ov02-card"><h2>MTD Eff% &amp; PPH by VVIC Customer</h2><ReactECharts key={`vvic-${vvicRows.length}`} option={barOption(vvicRows, true, true, crossBrand)} notMerge style={{ height: 295 }} onChartReady={(chart: any) => bindHorizontalTrackpadPan(chart, vvicRows.length, 12)} onEvents={{ click: (p: any) => { const r = vvicRows[p.dataIndex]; if (r) toggleBrand(r.name); } }} /></section>
-        <section className="ov02-card"><h2>MTD Eff% by Non-VVIC Customer</h2><ReactECharts key={`non-${nonRows.length}`} option={barOption(nonRows, false, true, crossBrand)} notMerge style={{ height: 295 }} onChartReady={(chart: any) => bindHorizontalTrackpadPan(chart, nonRows.length, 12)} onEvents={{ click: (p: any) => { const r = nonRows[p.dataIndex]; if (r) toggleBrand(r.name); } }} /></section>
+        <section className="ov02-card"><h2>MTD Eff% &amp; PPH by VVIC Product Type</h2><ReactECharts option={barOption(productRows, true, false, crossGmtType, "GMT_TYPE")} notMerge style={{ height: 295 }} onEvents={{ click: (p: any) => { const r = productRows[p.dataIndex]; if (r) toggleGmt(r.name); } }} /></section>
+        <section className="ov02-card"><h2>MTD Eff% &amp; PPH by VVIC Customer</h2><ReactECharts key={`vvic-${vvicRows.length}`} option={barOption(vvicRows, true, true, crossBrand, "BRAND_NAME")} notMerge style={{ height: 295 }} onChartReady={(chart: any) => bindHorizontalTrackpadPan(chart, vvicRows.length, 12)} onEvents={{ click: (p: any) => { const r = vvicRows[p.dataIndex]; if (r) toggleBrand(r.name); } }} /></section>
+        <section className="ov02-card"><h2>MTD Eff% by Non-VVIC Customer</h2><ReactECharts key={`non-${nonRows.length}`} option={barOption(nonRows, false, true, crossBrand, "BRAND_NAME")} notMerge style={{ height: 295 }} onChartReady={(chart: any) => bindHorizontalTrackpadPan(chart, nonRows.length, 12)} onEvents={{ click: (p: any) => { const r = nonRows[p.dataIndex]; if (r) toggleBrand(r.name); } }} /></section>
       </div>
     </div>
   );
