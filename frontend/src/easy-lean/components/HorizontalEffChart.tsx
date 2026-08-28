@@ -15,13 +15,50 @@ const colorFor = (name: string) => { let h=0; for(let i=0;i<name.length;i++) h=(
 export default function HorizontalEffChart({ data, selectedFactory, onSelect }: Props) {
   const option = {
     animationDuration: 250,
-    tooltip: { trigger: "item", confine: true, formatter: (params: any) => {
-      const row = data[params.dataIndex]; if (!row) return "";
-      const products=(row.product_types??[]).filter(x=>x.eff_pct!=null).sort((a,b)=>Number(b.eff_pct)-Number(a.eff_pct));
-      const maximum=Math.max(...products.map(x=>Number(x.eff_pct)||0),.01);
-      const detail=products.length?products.map(x=>{const width=Math.max(5,(Number(x.eff_pct)/maximum)*205);return `<div style="margin-top:9px"><div style="font-size:10px">${esc(x.product_type)}</div><div style="display:flex;align-items:center;gap:9px"><span style="display:block;width:${width}px;max-width:205px;height:15px;background:${colorFor(x.product_type)}"></span><span>${(Number(x.eff_pct)*100).toFixed(1)}%</span></div></div>`}).join(""):"<div style=\"margin-top:8px\">No Product Type data</div>";
-      return `<div style="padding:10px;min-width:260px"><div>EFF% by Product Type</div><div style="font-size:10px;margin-top:3px">${esc(row.factory)}</div>${detail}</div>`;
-    }},
+    tooltip: {
+      trigger: "item",
+      confine: false,
+      appendToBody: true,
+      backgroundColor: "#fff",
+      borderColor: "#d7dee8",
+      borderWidth: 1,
+      padding: 0,
+      extraCssText: "box-shadow:0 8px 24px rgba(20,35,60,.18);border-radius:4px;max-width:none;",
+      formatter: (params: any) => {
+        const row = data[params.dataIndex];
+        if (!row) return "";
+        const products = (row.product_types ?? [])
+          .filter(x => x.eff_pct != null && Number.isFinite(Number(x.eff_pct)))
+          .sort((a,b) => Number(b.eff_pct) - Number(a.eff_pct));
+
+        if (!products.length) {
+          return `<div style="padding:10px 12px;min-width:240px"><div style="font-size:12px;font-weight:700;color:#24324a">EFF% by Product Type</div><div style="font-size:10px;color:#7b8799;margin-top:3px">${esc(row.factory)}</div><div style="margin-top:8px;color:#94a3b8;font-size:11px">No Product Type data</div></div>`;
+        }
+
+        const columns = products.length > 18 ? 4 : products.length > 10 ? 3 : products.length > 5 ? 2 : 1;
+        const columnWidth = columns === 1 ? 230 : 170;
+        const tooltipWidth = columns * columnWidth;
+        const maximum = Math.max(...products.map(x => Number(x.eff_pct) || 0), .01);
+        const detail = products.map(x => {
+          const value = Number(x.eff_pct);
+          const width = Math.max(8, Math.min(columns === 1 ? 145 : 95, (value / maximum) * (columns === 1 ? 145 : 95)));
+          const name = x.product_type || "OTHER";
+          return `<div style="min-width:0;padding:5px 7px;border-radius:4px;background:#f8fafc">
+            <div style="font-size:10px;color:#536176;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px">${esc(name)}</div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="display:block;width:${width}px;height:10px;border-radius:2px;background:${colorFor(name)}"></span>
+              <b style="font-size:10px;color:#172033;white-space:nowrap">${(value * 100).toFixed(1)}%</b>
+            </div>
+          </div>`;
+        }).join("");
+
+        return `<div style="padding:10px 12px;width:${tooltipWidth}px;box-sizing:border-box">
+          <div style="font-size:12px;font-weight:700;color:#24324a">EFF% by Product Type</div>
+          <div style="font-size:10px;color:#7b8799;margin-top:3px;margin-bottom:8px">${esc(row.factory)}</div>
+          <div style="display:grid;grid-template-columns:repeat(${columns},minmax(0,1fr));gap:6px">${detail}</div>
+        </div>`;
+      },
+    },
     grid: { left: 48, right: 58, top: 36, bottom: 24, containLabel: true },
     xAxis: { type: "value", min: 0, max: 1, axisLabel: { formatter: (value: number) => `${Math.round(value * 100)}%` }, splitLine: { lineStyle: { color: "#e7ebf2" } } },
     yAxis: { type: "category", inverse: true, data: data.map((row) => row.factory), axisTick: { show: false }, axisLine: { show: false } },
