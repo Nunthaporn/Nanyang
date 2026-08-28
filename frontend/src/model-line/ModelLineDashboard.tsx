@@ -6,11 +6,13 @@ type Filters = { min_date: string | null; max_date: string | null; factories: st
 type Summary = { eff_pct: number | null; min_produce: number | null; pph: number | null; count_style: number | null; operator_count: number | null; count_line: number | null; last_refresh: string };
 type ModelEff = { model_line: string; eff_pct: number };
 type ProductEff = { pd_type: string; model_line: string; eff_pct: number; sum_outmin?: number; sum_inmin?: number };
-type LatestLine = { model_line: string; line: string; latest_date: string; eff_pct: number };
+type ProductTypeEff = { product_type: string; eff_pct: number | null };
+type LatestLine = { model_line: string; line: string; latest_date: string; eff_pct: number; product_types?: ProductTypeEff[] };
 type DateModel = { produce_date: string; model_line: string; eff_pct: number };
 
 const FACTORY_ORDER = ["G1", "G2", "G3", "G4", "TRM", "EA"];
 const MODEL_COLORS: Record<string, string> = { G1: "#f04486", G2: "#ffd126", G3: "#ff7917", G4: "#15b7c6", TRM: "#2889dc", EA: "#54df0b" };
+const PRODUCT_COLORS = ["#1812a8", "#ffd91a", "#ff8b2c", "#16b9c7", "#2c8ce5", "#5bdc20", "#ef4b87", "#8a63d2", "#00a67d", "#d6692f"];
 const TARGET = 0.65;
 const num = (v: unknown) => (v == null ? null : Number(v));
 const pct = (v: unknown, digits = 1) => { const n = num(v); return n == null || Number.isNaN(n) ? "-" : `${(n * 100).toFixed(digits)}%`; };
@@ -18,6 +20,8 @@ const fmt = (v: unknown, digits = 0) => { const n = num(v); if (n == null || Num
 const fmtM = (v: unknown) => { const n = num(v); if (n == null || Number.isNaN(n)) return "-"; return Math.abs(n) >= 1_000_000 ? `${(n / 1_000_000).toFixed(2)}M` : fmt(n); };
 const thaiRefresh = (iso?: string) => { if (!iso) return ""; const d = new Date(iso); if (Number.isNaN(d.getTime())) return ""; return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear() + 543} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`; };
 const yearStartFor = (value: string, minDate?: string | null) => { const yearStart = `${value.slice(0, 4)}-01-01`; return minDate && minDate > yearStart ? minDate : yearStart; };
+const esc = (value: string) => value.replace(/[&<>"']/g, x => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[x]!));
+const productColor = (name: string) => { let hash = 0; for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0; return PRODUCT_COLORS[Math.abs(hash) % PRODUCT_COLORS.length]; };
 
 const bindHorizontalTrackpadPan = (chart: any, itemCount: number, visibleCount: number) => {
   const dom = chart?.getDom?.();
@@ -36,12 +40,7 @@ const bindHorizontalTrackpadPan = (chart: any, itemCount: number, visibleCount: 
     const nextStart = Math.max(0, Math.min(maxStart, currentStart + (event.deltaX > 0 ? step : -step)));
     if (nextStart === currentStart) return;
 
-    chart.dispatchAction({
-      type: "dataZoom",
-      dataZoomIndex: 0,
-      startValue: nextStart,
-      endValue: nextStart + visibleCount - 1,
-    });
+    chart.dispatchAction({ type: "dataZoom", dataZoomIndex: 0, startValue: nextStart, endValue: nextStart + visibleCount - 1 });
   };
 
   dom.addEventListener("wheel", handler, { passive: false });
@@ -127,7 +126,13 @@ export default function ModelLineDashboard() {
 
   const makeLatestOption = (rows: LatestLine[], compact = false) => ({
     animationDuration: 350, grid: { left: 48, right: 64, top: 44, bottom: compact ? 52 : 62 },
-    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, formatter: (items: any[]) => { const i = items[0]; const r = rows[i.dataIndex]; return `<b>${r?.model_line ?? ""} · Line ${r?.line ?? ""}</b><br/>EFF%: ${(Number(i.value) * 100).toFixed(1)}%<br/>Latest date: ${r?.latest_date ?? ""}`; } },
+    tooltip: { trigger: "axis", confine: true, backgroundColor: "#fff", borderColor: "#aeb8c6", borderWidth: 1, padding: 0, extraCssText: "box-shadow:0 8px 24px rgba(20,35,60,.22);border-radius:3px;", axisPointer: { type: "shadow" }, formatter: (items: any[]) => {
+      const i = items[0]; const r = rows[i.dataIndex]; if (!r) return "";
+      const products = (r.product_types ?? []).filter(x => x.eff_pct != null).sort((a, b) => Number(b.eff_pct) - Number(a.eff_pct));
+      const maximum = Math.max(...products.map(x => Number(x.eff_pct) || 0), .01);
+      const detail = products.length ? products.map(x => { const width = Math.max(5, (Number(x.eff_pct) / maximum) * 205); return `<div style="margin-top:10px"><div style="font-size:10px;color:#283247;margin-bottom:4px">${esc(x.product_type)}</div><div style="display:flex;align-items:center;gap:9px"><span style="display:block;width:${width}px;max-width:205px;height:15px;border-radius:2px;background:${productColor(x.product_type)}"></span><b style="font-size:11px;color:#172033">${pct(x.eff_pct,1)}</b></div></div>`; }).join("") : `<div style="margin-top:10px;color:#748196;font-size:11px">No Product Type data</div>`;
+      return `<div style="padding:12px 14px;min-width:270px"><div style="font-size:12px;font-weight:700;color:#263145">EFF% by Product Type</div><div style="font-size:10px;color:#748196;margin-top:3px">${esc(r.model_line)} · Line ${esc(String(r.line))} · ${esc(String(r.latest_date ?? ""))}</div>${detail}</div>`;
+    } },
     xAxis: { type: "category", data: rows.map((x) => `${x.line}\n${x.model_line}`), axisLabel: { interval: 0, fontSize: compact ? 10 : 9 }, axisTick: { show: false } },
     yAxis: { type: "value", min: 0, axisLabel: { formatter: (v: number) => `${Math.round(v * 100)}%` }, splitLine: { lineStyle: { color: "#e3ebf4" } } },
     dataZoom: rows.length > 14 ? [{ type: "inside", startValue: 0, endValue: 13, zoomLock: true, zoomOnMouseWheel: false, moveOnMouseWheel: false, moveOnMouseMove: true }, { type: "slider", startValue: 0, endValue: 13, zoomLock: true, height: 12, bottom: 4, showDetail: false, brushSelect: false }] : [],
@@ -140,10 +145,7 @@ export default function ModelLineDashboard() {
     const models = Array.from(new Set(visibleDateModel.map((x) => x.model_line))).sort();
     const byDate = new Map<string, Map<string, number>>();
     visibleDates.forEach((d) => byDate.set(d, new Map(visibleDateModel.filter((x) => x.produce_date === d).map((x) => [x.model_line, Number(x.eff_pct)]))));
-    const values = visibleDateModel
-      .filter((x) => visibleDates.includes(x.produce_date))
-      .map((x) => Number(x.eff_pct))
-      .filter(Number.isFinite);
+    const values = visibleDateModel.filter((x) => visibleDates.includes(x.produce_date)).map((x) => Number(x.eff_pct)).filter(Number.isFinite);
     const minY = values.length ? Math.max(0, Math.floor((Math.min(...values) - 0.05) * 20) / 20) : 0;
     const maxY = values.length ? Math.min(1.15, Math.ceil((Math.max(...values) + 0.05) * 20) / 20) : 1;
     return {
