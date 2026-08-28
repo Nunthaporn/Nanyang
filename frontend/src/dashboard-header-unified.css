@@ -12,7 +12,7 @@
   --dash-header-bottom-gap: 14px;
   --dash-chart-gap: 14px;
   --dash-page-x: 24px;
-  --dash-title-x: 24px;
+  --dash-title-x: 48px;
 }
 
 /* Same left/right page edge on every dashboard tab. */
@@ -28,7 +28,7 @@
   box-sizing: border-box !important;
 }
 
-/* Keep the visible dashboard title on exactly the same left edge on every tab. */
+/* Keep every visible dashboard title on the same left edge. */
 .nanyang-content .ex-header h1,
 .nanyang-content .ov-header h1,
 .nanyang-content .ov02-header h1,
@@ -42,15 +42,40 @@
   margin-left: var(--dash-title-x) !important;
 }
 
-/* Avoid doubling the page padding: title offset is relative to the common 24px page edge. */
-.nanyang-content .ex-page,
-.nanyang-content .ov-page,
-.nanyang-content .ov02-page,
-.nanyang-content .mve-page,
-.nanyang-content .ml-page,
-.nanyang-content .vvic-page,
-.nanyang-content > main.page {
-  --dash-title-x: 24px;
+/* Executive title should not show a secondary "Data as of ..." line. */
+.nanyang-content .ex-header > div > span,
+.nanyang-content .ex-header > div > small,
+.nanyang-content .ex-header .ex-data-as-of {
+  display: none !important;
+}
+
+/* Use one desktop header geometry for Overview-family pages.
+   This makes START/END, Factory tabs and REFRESH land on the same x positions. */
+@media (min-width: 1181px) {
+  .nanyang-content .ov-header,
+  .nanyang-content .ov02-header,
+  .nanyang-content .mve-filter-row,
+  .nanyang-content .ml-header {
+    grid-template-columns: 280px 190px 190px minmax(520px, 1fr) max-content !important;
+  }
+
+  /* VVIC has one extra Customer Type control before START/END. */
+  .nanyang-content .vvic-header {
+    grid-template-columns: 280px 180px 190px 190px minmax(520px, 1fr) max-content !important;
+  }
+
+  .nanyang-content .ov-refresh,
+  .nanyang-content .ov02-refresh,
+  .nanyang-content .mve-refresh,
+  .nanyang-content .ml-refresh,
+  .nanyang-content .vvic-header > .vvic-refresh-time {
+    justify-self: start !important;
+    width: max-content !important;
+    max-width: none !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    text-align: left !important;
+  }
 }
 
 /* EASY LEAN previously had width:100% plus outer horizontal padding, which
@@ -61,9 +86,7 @@
   overflow-x: clip !important;
 }
 
-/* VVIC and EASY LEAN have extra inner wrappers in their local styles.
-   Remove only their horizontal padding/margins so the outer 24px page edge
-   is the single source of truth, matching all other tabs. */
+/* VVIC and EASY LEAN have extra inner wrappers in their local styles. */
 .nanyang-content .vvic-page > .vvic-main {
   padding-left: 0 !important;
   padding-right: 0 !important;
@@ -187,20 +210,20 @@
   padding: 0 2px !important;
   display: flex !important;
   align-items: center !important;
-  justify-content: flex-end !important;
+  justify-content: flex-start !important;
   align-self: center !important;
   color: var(--dash-refresh-text) !important;
   font-size: 10px !important;
   font-weight: 500 !important;
   line-height: 1 !important;
-  text-align: right !important;
+  text-align: left !important;
   white-space: nowrap !important;
   box-sizing: border-box !important;
 }
 
 .nanyang-content > main.page > .topbar .refresh {
   flex-direction: column !important;
-  align-items: flex-end !important;
+  align-items: flex-start !important;
   justify-content: center !important;
 }
 
@@ -213,6 +236,8 @@
 .nanyang-content .vvic-header,
 .nanyang-content > main.page > .topbar {
   gap: 12px !important;
+  column-gap: 12px !important;
+  row-gap: 12px !important;
   align-items: center !important;
 }
 
