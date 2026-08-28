@@ -53,6 +53,7 @@ def build_overview_router(get_db):
         ),
         raw_base AS (
             SELECT {DATE_EXPR} AS produce_date, fd.factory,
+                   COALESCE(NULLIF(BTRIM(e."PD_Type"::text), ''), 'OTHER') AS product_type,
                    {MIN_OUTPUT} AS min_output, {MIN_INPUT} AS min_input, {OUTPUT_PCS} AS output_pcs
             FROM public.teffdata e
             INNER JOIN factory_dim fd ON fd.factory = UPPER(BTRIM(e."FACTORY"::text))
@@ -60,8 +61,7 @@ def build_overview_router(get_db):
               AND (CAST(:factory AS text) IS NULL OR fd.factory = UPPER(BTRIM(CAST(:factory AS text))))
         ),
         base AS (
-            SELECT *
-            FROM raw_base
+            SELECT * FROM raw_base
             WHERE produce_date BETWEEN :start_date AND :end_date
         ),
         mgr_parsed AS (
@@ -128,6 +128,16 @@ def build_overview_router(get_db):
                    factory,
                    SUM(min_output)/NULLIF(SUM(min_input),0) AS eff_pct
             FROM base GROUP BY DATE_TRUNC('month',produce_date)::date, factory HAVING SUM(min_input)<>0
+        ),
+        factory_monthly_product AS (
+            SELECT DATE_TRUNC('month',produce_date)::date AS month_date,
+                   factory,
+                   product_type,
+                   SUM(min_output)/NULLIF(SUM(min_input),0) AS eff_pct
+            FROM base
+            WHERE product_type <> 'OTHER'
+            GROUP BY DATE_TRUNC('month',produce_date)::date, factory, product_type
+            HAVING SUM(min_input)<>0
         )
         SELECT JSONB_BUILD_OBJECT(
             'kpis', COALESCE((SELECT JSONB_OBJECT_AGG(period,eff_pct) FROM overall_periods),'{{}}'::jsonb),
@@ -138,6 +148,7 @@ def build_overview_router(get_db):
             'monthly', COALESCE((SELECT JSONB_AGG(JSONB_BUILD_OBJECT('month',month_date,'eff_pct',eff_pct) ORDER BY month_date) FROM monthly),'[]'::jsonb),
             'last30', COALESCE((SELECT JSONB_AGG(JSONB_BUILD_OBJECT('produce_date',produce_date,'eff_pct',eff_pct) ORDER BY produce_date) FROM last30),'[]'::jsonb),
             'factory_monthly', COALESCE((SELECT JSONB_AGG(JSONB_BUILD_OBJECT('month',month_date,'factory',factory,'eff_pct',eff_pct) ORDER BY month_date,factory) FROM factory_monthly),'[]'::jsonb),
+            'factory_monthly_product', COALESCE((SELECT JSONB_AGG(JSONB_BUILD_OBJECT('month',month_date,'factory',factory,'product_type',product_type,'eff_pct',eff_pct) ORDER BY month_date,factory,eff_pct DESC NULLS LAST,product_type) FROM factory_monthly_product),'[]'::jsonb),
             'latest_date',(SELECT ld FROM latest_date)
         ) AS payload
     ''')
@@ -156,7 +167,7 @@ def build_overview_router(get_db):
         p = params(start_date,end_date,factory)
         try:
             row = db.execute(DASHBOARD_SQL,p).mappings().first()
-            payload = dict(row["payload"]) if row and row["payload"] else {"kpis":{},"kpi_details":{},"factory_periods":[],"monthly":[],"last30":[],"factory_monthly":[],"latest_date":None}
+            payload = dict(row["payload"]) if row and row["payload"] else {"kpis":{},"kpi_details":{},"factory_periods":[],"monthly":[],"last30":[],"factory_monthly":[],"factory_monthly_product":[],"latest_date":None}
             payload["last_refresh"] = datetime.now().astimezone()
             return payload
         except Exception as exc:
