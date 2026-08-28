@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 const ExecutiveSummaryDashboard = lazy(() => import("./executive/ExecutiveSummaryDashboard"));
 const OverviewDashboard = lazy(() => import("./overview/OverviewDashboard"));
@@ -40,15 +40,30 @@ const setNativeDateValue = (input: HTMLInputElement, value: string) => {
 export default function App() {
   const [active, setActive] = useState<DashboardKey>("executive");
   const [sharedDates, setSharedDates] = useState<SharedDates>(() => readStoredDates());
+  const syncingDatesRef = useRef(false);
 
   const applySharedDates = useCallback(() => {
     if (!sharedDates.startDate || !sharedDates.endDate) return false;
     const inputs = Array.from(document.querySelectorAll<HTMLInputElement>(".nanyang-content input[type='date']"));
     if (inputs.length < 2) return false;
 
-    const startChanged = setNativeDateValue(inputs[0], sharedDates.startDate);
-    const endChanged = setNativeDateValue(inputs[1], sharedDates.endDate);
-    return startChanged || endChanged;
+    const startNeedsChange = inputs[0].value !== sharedDates.startDate;
+    const endNeedsChange = inputs[1].value !== sharedDates.endDate;
+    if (!startNeedsChange && !endNeedsChange) return false;
+
+    // Programmatic synchronization must not be captured as a new user filter.
+    // Otherwise the first changed input can combine with the other dashboard's
+    // default date and overwrite the shared range with a mixed pair.
+    syncingDatesRef.current = true;
+    try {
+      // Set both controlled inputs during the same protected sync window.
+      if (startNeedsChange) setNativeDateValue(inputs[0], sharedDates.startDate);
+      if (endNeedsChange) setNativeDateValue(inputs[1], sharedDates.endDate);
+    } finally {
+      // React's synthetic change handlers run synchronously for these dispatched events.
+      syncingDatesRef.current = false;
+    }
+    return true;
   }, [sharedDates]);
 
   useEffect(() => {
@@ -56,15 +71,14 @@ export default function App() {
     sessionStorage.setItem(DATE_STORAGE_KEY, JSON.stringify(sharedDates));
   }, [sharedDates]);
 
-  // Sync only for a short bounded period after a tab/date change.
-  // Dashboard components load their own filter metadata asynchronously and may set
-  // their default dates once after mount, so a few lightweight retries are enough.
-  // Do NOT observe the whole chart DOM: ECharts mutates it frequently while rendering.
+  // A newly mounted dashboard first loads its own filter metadata and may briefly
+  // write its default date range. Re-apply the shared range for a short bounded
+  // window so the shared filter wins after initialization, without observing ECharts DOM.
   useEffect(() => {
     if (!sharedDates.startDate || !sharedDates.endDate) return;
 
     let attempts = 0;
-    const maxAttempts = 12;
+    const maxAttempts = 16;
 
     const sync = () => {
       applySharedDates();
@@ -82,6 +96,8 @@ export default function App() {
   }, [active, sharedDates, applySharedDates]);
 
   const captureDateFilter = (event: React.ChangeEvent<HTMLElement>) => {
+    if (syncingDatesRef.current) return;
+
     const target = event.target;
     if (!(target instanceof HTMLInputElement) || target.type !== "date") return;
 
