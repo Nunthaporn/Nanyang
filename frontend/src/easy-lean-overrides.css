@@ -101,17 +101,8 @@
   font-size: 14px !important;
   font-weight: 500 !important;
   box-shadow: none !important;
+  order: initial !important;
 }
-
-/* Easy Lean source renders ALL, EA, G1, G2, G3, G4, TRM.
-   Reorder visually to match every Nanyang dashboard: ALL, G1, G2, G3, G4, TRM, EA. */
-.nanyang-content > main.page > .topbar .tabs button:nth-child(1) { order: 1; }
-.nanyang-content > main.page > .topbar .tabs button:nth-child(2) { order: 7; }
-.nanyang-content > main.page > .topbar .tabs button:nth-child(3) { order: 2; }
-.nanyang-content > main.page > .topbar .tabs button:nth-child(4) { order: 3; }
-.nanyang-content > main.page > .topbar .tabs button:nth-child(5) { order: 4; }
-.nanyang-content > main.page > .topbar .tabs button:nth-child(6) { order: 5; }
-.nanyang-content > main.page > .topbar .tabs button:nth-child(7) { order: 6; }
 
 .nanyang-content > main.page > .topbar .tabs button.active {
   background: #fff !important;
@@ -154,8 +145,6 @@
   font-weight: 500 !important;
 }
 
-/* The actual timestamp text remains available as a fallback. JS-created text
-   is exposed by making strong itself visible when no data attribute is set. */
 .nanyang-content > main.page > .topbar .refresh strong:not([data-refresh-label]) {
   color: #6b7fa3 !important;
   font-size: 10px !important;
