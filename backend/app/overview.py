@@ -135,7 +135,6 @@ def build_overview_router(get_db):
                    product_type,
                    SUM(min_output)/NULLIF(SUM(min_input),0) AS eff_pct
             FROM base
-            WHERE product_type <> 'OTHER'
             GROUP BY DATE_TRUNC('month',produce_date)::date, factory, product_type
             HAVING SUM(min_input)<>0
         )
