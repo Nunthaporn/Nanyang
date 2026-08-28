@@ -87,7 +87,7 @@ def build_model_line_router(get_db):
     ''')
 
     PRODUCT_TABLE_SQL = text(r'''
-        SELECT COALESCE(NULLIF(BTRIM(e."PD_Type"::text), ''), 'UNKNOWN') AS pd_type,
+        SELECT COALESCE(NULLIF(BTRIM(e."PD_Type"::text), ''), 'OTHER') AS pd_type,
                BTRIM(e."Model Line"::text) AS model_line,
                SUM(NULLIF(REGEXP_REPLACE(BTRIM(e."Min Output"::text), '[^0-9.-]', '', 'g'), '')::numeric)
                / NULLIF(SUM(NULLIF(REGEXP_REPLACE(BTRIM(e."Min Input"::text), '[^0-9.-]', '', 'g'), '')::numeric), 0) AS eff_pct
@@ -95,7 +95,7 @@ def build_model_line_router(get_db):
         WHERE e."Date"::date BETWEEN :start_date AND :end_date
           AND NULLIF(BTRIM(e."Model Line"::text), '') IS NOT NULL
           AND (CAST(:factory AS text) IS NULL OR UPPER(BTRIM(e."FACTORY"::text)) = CAST(:factory AS text))
-        GROUP BY COALESCE(NULLIF(BTRIM(e."PD_Type"::text), ''), 'UNKNOWN'), BTRIM(e."Model Line"::text)
+        GROUP BY COALESCE(NULLIF(BTRIM(e."PD_Type"::text), ''), 'OTHER'), BTRIM(e."Model Line"::text)
         HAVING SUM(NULLIF(REGEXP_REPLACE(BTRIM(e."Min Input"::text), '[^0-9.-]', '', 'g'), '')::numeric) <> 0
         ORDER BY pd_type, model_line
     ''')
@@ -106,7 +106,7 @@ def build_model_line_router(get_db):
                 e."Date"::date AS produce_date,
                 BTRIM(e."Model Line"::text) AS model_line,
                 COALESCE(NULLIF(BTRIM(ml."Line"::text), ''), NULLIF(BTRIM(e."Line"::text), '')) AS line,
-                COALESCE(NULLIF(BTRIM(e."PD_Type"::text), ''), 'UNKNOWN') AS product_type,
+                COALESCE(NULLIF(BTRIM(e."PD_Type"::text), ''), 'OTHER') AS product_type,
                 NULLIF(REGEXP_REPLACE(BTRIM(e."Min Output"::text), '[^0-9.-]', '', 'g'), '')::numeric AS min_output,
                 NULLIF(REGEXP_REPLACE(BTRIM(e."Min Input"::text), '[^0-9.-]', '', 'g'), '')::numeric AS min_input
             FROM public.teffdata e
@@ -128,7 +128,6 @@ def build_model_line_router(get_db):
             SELECT model_line, line, product_type,
                    SUM(min_output) / NULLIF(SUM(min_input), 0) AS eff_pct
             FROM latest_data
-            WHERE product_type <> 'UNKNOWN'
             GROUP BY model_line, line, product_type
             HAVING SUM(min_input) <> 0
         ),
