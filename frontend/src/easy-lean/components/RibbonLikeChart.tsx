@@ -20,7 +20,7 @@ export default function RibbonLikeChart({data,mode="monthly",selectedFactory,onF
   });
   const series=factories.map(factory=>{
     const active=!selectedFactory||selectedFactory===factory; const color=COLORS[factory]??"#64748b";
-    return {name:factory,type:"line",smooth:.48,connectNulls:false,symbol:"roundRect",symbolSize:[76,28],showSymbol:true,z:active?5:2,
+    return {name:factory,type:"line",smooth:.48,connectNulls:true,symbol:"roundRect",symbolSize:[76,28],showSymbol:true,z:active?5:2,
       lineStyle:{width:20,color,opacity:active ? .58 : .12,cap:"round",join:"round"},itemStyle:{color,opacity:active?1:.2,borderWidth:0},
       label:{show:true,position:"inside",color:factory==="G2"||factory==="G3"||factory==="EA"?"#111827":"#fff",fontSize:10,fontWeight:700,formatter:(p:any)=>pct(p?.data?.eff)},
       data:periods.map(period=>{const eff=valueMap.get(`${period}__${factory}`)??null;const rank=rankMap.get(`${period}__${factory}`);return eff==null||rank==null?null:{value:rank,eff,period,factory};})};
