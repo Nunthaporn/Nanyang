@@ -8,7 +8,7 @@ type ModelEff = { model_line: string; eff_pct: number };
 type ProductEff = { pd_type: string; model_line: string; eff_pct: number; sum_outmin?: number; sum_inmin?: number };
 type ProductTypeEff = { product_type: string; eff_pct: number | null };
 type LatestLine = { model_line: string; line: string; latest_date: string; eff_pct: number; product_types?: ProductTypeEff[] };
-type DateModel = { produce_date: string; model_line: string; eff_pct: number };
+type DateModel = { produce_date: string; model_line: string; eff_pct: number; product_types?: ProductTypeEff[] };
 
 const FACTORY_ORDER = ["G1", "G2", "G3", "G4", "TRM", "EA"];
 const MODEL_COLORS: Record<string, string> = { G1: "#f04486", G2: "#ffd126", G3: "#ff7917", G4: "#15b7c6", TRM: "#2889dc", EA: "#54df0b" };
@@ -28,21 +28,17 @@ const bindHorizontalTrackpadPan = (chart: any, itemCount: number, visibleCount: 
   if (!dom || itemCount <= visibleCount) return;
   const previous = (dom as any).__horizontalTrackpadPan;
   if (previous) dom.removeEventListener("wheel", previous);
-
   const handler = (event: WheelEvent) => {
     if (Math.abs(event.deltaX) < 1 || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
     event.preventDefault();
-
     const zoom = chart.getOption()?.dataZoom?.[0] ?? {};
     const currentStart = Number(zoom.startValue ?? 0);
     const maxStart = Math.max(0, itemCount - visibleCount);
     const step = Math.max(1, Math.min(3, Math.round(Math.abs(event.deltaX) / 45)));
     const nextStart = Math.max(0, Math.min(maxStart, currentStart + (event.deltaX > 0 ? step : -step)));
     if (nextStart === currentStart) return;
-
     chart.dispatchAction({ type: "dataZoom", dataZoomIndex: 0, startValue: nextStart, endValue: nextStart + visibleCount - 1 });
   };
-
   dom.addEventListener("wheel", handler, { passive: false });
   (dom as any).__horizontalTrackpadPan = handler;
 };
@@ -107,7 +103,7 @@ export default function ModelLineDashboard() {
 
   const modelBarOption = useMemo(() => ({
     animationDuration: 350, grid: { left: 45, right: 64, top: 44, bottom: 34 },
-    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, valueFormatter: (v: number) => `${(v * 100).toFixed(1)}%` },
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, formatter: (items: any[]) => { const p = items?.[0]; const r = visibleModelEff[p?.dataIndex]; if (!r) return ""; return `Model Line: ${esc(r.model_line)}<br/>EFF%: ${pct(r.eff_pct, 1)}`; } },
     xAxis: { type: "category", data: visibleModelEff.map((x) => x.model_line), axisTick: { show: false }, axisLine: { show: false } },
     yAxis: { type: "value", min: 0, max: 1.15, axisLabel: { formatter: (v: number) => `${Math.round(v * 100)}%` }, splitLine: { lineStyle: { color: "#dce6f1", type: "dashed" } } },
     series: [{ type: "bar", barMaxWidth: 48, data: visibleModelEff.map((x) => ({ value: Number(x.eff_pct), itemStyle: { color: Number(x.eff_pct) >= TARGET ? "#22b956" : "#ef4760", borderRadius: [5, 5, 0, 0] } })), label: { show: true, position: "top", formatter: (p: any) => `${(Number(p.value) * 100).toFixed(1)}%`, fontSize: 11 }, markLine: { silent: true, symbol: "none", lineStyle: { color: "#6686cf", type: "dashed", width: 2 }, label: { formatter: "Target 65%", position: "end", distance: 2, offset: [-6, -9], color: "#3561b6", fontWeight: 700, fontSize: 10, padding: [1, 3], backgroundColor: "rgba(255,255,255,0.92)", borderRadius: 3 }, data: [{ yAxis: TARGET }] } }],
@@ -143,16 +139,22 @@ export default function ModelLineDashboard() {
     const dates = Array.from(new Set(visibleDateModel.map((x) => x.produce_date))).sort();
     const visibleDates = dates.slice(Math.max(0, dates.length - 18));
     const models = Array.from(new Set(visibleDateModel.map((x) => x.model_line))).sort();
-    const byDate = new Map<string, Map<string, number>>();
-    visibleDates.forEach((d) => byDate.set(d, new Map(visibleDateModel.filter((x) => x.produce_date === d).map((x) => [x.model_line, Number(x.eff_pct)]))));
+    const byDate = new Map<string, Map<string, DateModel>>();
+    visibleDates.forEach((d) => byDate.set(d, new Map(visibleDateModel.filter((x) => x.produce_date === d).map((x) => [x.model_line, x]))));
     const values = visibleDateModel.filter((x) => visibleDates.includes(x.produce_date)).map((x) => Number(x.eff_pct)).filter(Number.isFinite);
     const minY = values.length ? Math.max(0, Math.floor((Math.min(...values) - 0.05) * 20) / 20) : 0;
     const maxY = values.length ? Math.min(1.15, Math.ceil((Math.max(...values) + 0.05) * 20) / 20) : 1;
     return {
       animationDuration: 450, color: models.map((m) => MODEL_COLORS[m] || "#64748b"), legend: { top: 0, data: models, icon: "circle", itemWidth: 9, itemHeight: 9 }, grid: { left: 48, right: 28, top: 42, bottom: 36 },
-      tooltip: { trigger: "axis", valueFormatter: (v: number) => pct(v) },
+      tooltip: { trigger: "item", confine: true, backgroundColor: "#fff", borderColor: "#aeb8c6", borderWidth: 1, padding: 0, extraCssText: "box-shadow:0 8px 24px rgba(20,35,60,.22);border-radius:3px;", formatter: (p: any) => {
+        const day = String(p.name ?? ""); const model = String(p.seriesName ?? ""); const r = byDate.get(day)?.get(model); if (!r) return "";
+        const products = (r.product_types ?? []).filter(x => x.eff_pct != null).sort((a, b) => Number(b.eff_pct) - Number(a.eff_pct));
+        const maximum = Math.max(...products.map(x => Number(x.eff_pct) || 0), .01);
+        const detail = products.length ? products.map(x => { const width = Math.max(5, (Number(x.eff_pct) / maximum) * 205); return `<div style="margin-top:10px"><div style="font-size:10px;color:#283247;margin-bottom:4px">${esc(x.product_type)}</div><div style="display:flex;align-items:center;gap:9px"><span style="display:block;width:${width}px;max-width:205px;height:15px;border-radius:2px;background:${productColor(x.product_type)}"></span><b style="font-size:11px;color:#172033">${pct(x.eff_pct,1)}</b></div></div>`; }).join("") : `<div style="margin-top:10px;color:#748196;font-size:11px">No Product Type data</div>`;
+        return `<div style="padding:12px 14px;min-width:270px"><div style="font-size:12px;font-weight:700;color:#263145">EFF% by Product Type</div><div style="font-size:10px;color:#748196;margin-top:3px">${esc(model)} · ${esc(day)}</div>${detail}</div>`;
+      } },
       xAxis: { type: "category", data: visibleDates, boundaryGap: false, axisTick: { show: false }, axisLabel: { formatter: (v: string) => { const [y, m, d] = v.split("-"); return `${d}/${m}/${y.slice(2)}`; } } }, yAxis: { type: "value", min: minY, max: maxY, axisLabel: { formatter: (v: number) => `${Math.round(v * 100)}%` }, splitLine: { lineStyle: { color: "#dce6f1", type: "dashed" } } },
-      series: models.map((m) => ({ name: m, type: "line", smooth: 0.18, symbol: "circle", symbolSize: 5, connectNulls: true, lineStyle: { width: 2.6, opacity: 0.9 }, itemStyle: { color: MODEL_COLORS[m] || "#64748b" }, emphasis: { focus: "series", lineStyle: { opacity: 0.98 } }, data: visibleDates.map((d, i) => { const value = byDate.get(d)?.get(m); const showLabel = selectedModel ? true : i % 3 === 0 || i === visibleDates.length - 1; return Number.isFinite(value) ? { value, label: { show: showLabel, formatter: pct(value, 1), position: "top", distance: 5, color: MODEL_COLORS[m] || "#263446", fontWeight: 700, fontSize: 9, backgroundColor: "rgba(255,255,255,.86)", borderRadius: 3, padding: [1, 3] } } : null; }), labelLayout: { hideOverlap: true, moveOverlap: "shiftY" } })),
+      series: models.map((m) => ({ name: m, type: "line", smooth: 0.18, symbol: "circle", symbolSize: 5, connectNulls: true, lineStyle: { width: 2.6, opacity: 0.9 }, itemStyle: { color: MODEL_COLORS[m] || "#64748b" }, emphasis: { focus: "series", lineStyle: { opacity: 0.98 } }, data: visibleDates.map((d, i) => { const row = byDate.get(d)?.get(m); const value = row ? Number(row.eff_pct) : undefined; const showLabel = selectedModel ? true : i % 3 === 0 || i === visibleDates.length - 1; return Number.isFinite(value) ? { value, label: { show: showLabel, formatter: pct(value, 1), position: "top", distance: 5, color: MODEL_COLORS[m] || "#263446", fontWeight: 700, fontSize: 9, backgroundColor: "rgba(255,255,255,.86)", borderRadius: 3, padding: [1, 3] } } : null; }), labelLayout: { hideOverlap: true, moveOverlap: "shiftY" } })),
     };
   }, [visibleDateModel, selectedModel]);
 
