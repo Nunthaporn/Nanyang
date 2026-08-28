@@ -1,5 +1,5 @@
-/* Shared dashboard header sizing.
-   Keep date filters, factory tabs, refresh text and vertical spacing consistent across dashboard pages. */
+/* Shared dashboard sizing and spacing.
+   Keep date filters, factory tabs, refresh text, headers and chart/card gaps consistent. */
 
 :root {
   --dash-filter-height: 56px;
@@ -10,10 +10,10 @@
   --dash-filter-active: #0757d7;
   --dash-refresh-text: #6b7fa3;
   --dash-header-bottom-gap: 14px;
+  --dash-chart-gap: 14px;
 }
 
-/* Date controls on Overview / Overview02 / MinVSEff / Model-Line.
-   Their outer height exactly matches the factory tab bar. */
+/* Date controls on Overview / Overview02 / MinVSEff / Model-Line. */
 .nanyang-content .ov-header label,
 .nanyang-content .ov02-header label,
 .nanyang-content .mve-date-card,
@@ -102,7 +102,7 @@
   box-shadow: 0 1px 4px rgba(48, 78, 120, .14) !important;
 }
 
-/* Refresh text: same height/alignment as the factory bar. */
+/* Refresh text */
 .nanyang-content .ov-refresh,
 .nanyang-content .ov02-refresh,
 .nanyang-content .mve-refresh,
@@ -145,8 +145,7 @@
   align-items: center !important;
 }
 
-/* Same vertical spacing from header controls to the first dashboard content.
-   Overview02 is the reference: 14px. */
+/* Same vertical spacing from header controls to first content. */
 .nanyang-content .ex-header,
 .nanyang-content .ov-header,
 .nanyang-content .ov02-header,
@@ -157,20 +156,45 @@
   margin-bottom: var(--dash-header-bottom-gap) !important;
 }
 
-/* VVIC used an empty status row as a spacer. Remove that extra spacer so the
-   header-to-content gap is the same 14px as the other tabs. Keep the row only
-   when a cross-filter selection is actually displayed. */
-.nanyang-content .vvic-status:empty {
-  display: none !important;
-}
-.nanyang-content .vvic-status:not(:empty) {
-  margin: 0 0 var(--dash-header-bottom-gap) !important;
+.nanyang-content .vvic-status:empty { display: none !important; }
+.nanyang-content .vvic-status:not(:empty) { margin: 0 0 var(--dash-header-bottom-gap) !important; }
+.nanyang-content > main.page > .dashboard { margin-top: 0 !important; }
+
+/* Standardize the space BETWEEN dashboard cards/charts to 14px.
+   We target the page-level grid/flex containers rather than the chart internals,
+   so chart sizes and ECharts rendering are not changed. */
+.nanyang-content .ex-grid,
+.nanyang-content .ex-main-grid,
+.nanyang-content .ex-content,
+.nanyang-content .ov-grid,
+.nanyang-content .ov-main,
+.nanyang-content .ov-content,
+.nanyang-content .ov02-grid,
+.nanyang-content .ov02-content,
+.nanyang-content .mve-grid,
+.nanyang-content .mve-content,
+.nanyang-content .ml-grid,
+.nanyang-content .ml-content,
+.nanyang-content .vvic-grid-layout,
+.nanyang-content .vvic-left,
+.nanyang-content .vvic-right,
+.nanyang-content .vvic-kpis,
+.nanyang-content > main.page > .dashboard,
+.nanyang-content > main.page .ez-top-charts,
+.nanyang-content > main.page .ez-bottom-charts,
+.nanyang-content > main.page .top-charts,
+.nanyang-content > main.page .bottom-charts {
+  gap: var(--dash-chart-gap) !important;
+  row-gap: var(--dash-chart-gap) !important;
+  column-gap: var(--dash-chart-gap) !important;
 }
 
-/* EASY LEAN previously carried its spacing on the dashboard itself. Move that
-   spacing to the shared header rule above to avoid a double gap. */
-.nanyang-content > main.page > .dashboard {
-  margin-top: 0 !important;
+/* Common adjacent card rows that use margins instead of gap. */
+.nanyang-content .vvic-trend,
+.nanyang-content .vvic-customer-card,
+.nanyang-content > main.page .ez-bottom-charts,
+.nanyang-content > main.page .bottom-charts {
+  margin-top: var(--dash-chart-gap) !important;
 }
 
 @media (max-width: 1180px) {
