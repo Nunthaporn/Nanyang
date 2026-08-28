@@ -1,0 +1,133 @@
+/* Shared dashboard header sizing.
+   Keep factory tabs and refresh text visually consistent across all dashboard pages. */
+
+:root {
+  --dash-filter-height: 56px;
+  --dash-filter-radius: 12px;
+  --dash-filter-padding: 4px;
+  --dash-filter-bg: #dce7f5;
+  --dash-filter-text: #304d7a;
+  --dash-filter-active: #0757d7;
+  --dash-refresh-text: #6b7fa3;
+}
+
+/* Factory/tab containers */
+.nanyang-content .ov-factories,
+.nanyang-content .ov02-factories,
+.nanyang-content .mve-factories,
+.nanyang-content .ml-factories,
+.nanyang-content .vvic-factories,
+.nanyang-content > main.page > .topbar .tabs {
+  display: flex !important;
+  align-items: stretch !important;
+  gap: 0 !important;
+  height: var(--dash-filter-height) !important;
+  min-height: var(--dash-filter-height) !important;
+  padding: var(--dash-filter-padding) !important;
+  overflow: hidden !important;
+  border-radius: var(--dash-filter-radius) !important;
+  background: var(--dash-filter-bg) !important;
+  box-sizing: border-box !important;
+}
+
+/* Factory/tab buttons */
+.nanyang-content .ov-factories button,
+.nanyang-content .ov02-factories button,
+.nanyang-content .mve-factories button,
+.nanyang-content .ml-factories button,
+.nanyang-content .vvic-factories button,
+.nanyang-content > main.page > .topbar .tabs button {
+  flex: 1 1 0 !important;
+  min-width: 58px !important;
+  height: 48px !important;
+  min-height: 48px !important;
+  margin: 0 !important;
+  padding: 0 10px !important;
+  border: 0 !important;
+  border-radius: 9px !important;
+  background: transparent !important;
+  color: var(--dash-filter-text) !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  line-height: 48px !important;
+  text-align: center !important;
+  box-sizing: border-box !important;
+}
+
+.nanyang-content .ov-factories button.active,
+.nanyang-content .ov02-factories button.active,
+.nanyang-content .mve-factories button.active,
+.nanyang-content .ml-factories button.active,
+.nanyang-content .vvic-factories button.sel,
+.nanyang-content > main.page > .topbar .tabs button.active {
+  background: #fff !important;
+  color: var(--dash-filter-active) !important;
+  box-shadow: 0 1px 4px rgba(48, 78, 120, .14) !important;
+}
+
+/* Refresh text: same height/alignment as the factory bar. */
+.nanyang-content .ov-refresh,
+.nanyang-content .ov02-refresh,
+.nanyang-content .mve-refresh,
+.nanyang-content .ml-refresh,
+.nanyang-content .vvic-header > .vvic-refresh-time,
+.nanyang-content > main.page > .topbar .refresh {
+  min-width: 0 !important;
+  height: var(--dash-filter-height) !important;
+  min-height: var(--dash-filter-height) !important;
+  margin: 0 !important;
+  padding: 0 2px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  align-self: center !important;
+  color: var(--dash-refresh-text) !important;
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  text-align: right !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
+}
+
+.nanyang-content > main.page > .topbar .refresh {
+  flex-direction: column !important;
+  align-items: flex-end !important;
+  justify-content: center !important;
+}
+
+/* Use the same 12px gap between header controls on all dashboard pages. */
+.nanyang-content .ov-header,
+.nanyang-content .ov02-header,
+.nanyang-content .mve-filter-row,
+.nanyang-content .ml-header,
+.nanyang-content .vvic-header,
+.nanyang-content > main.page > .topbar {
+  gap: 12px !important;
+  align-items: center !important;
+}
+
+@media (max-width: 1180px) {
+  .nanyang-content .ov-refresh,
+  .nanyang-content .ov02-refresh,
+  .nanyang-content .mve-refresh,
+  .nanyang-content .ml-refresh,
+  .nanyang-content .vvic-header > .vvic-refresh-time,
+  .nanyang-content > main.page > .topbar .refresh {
+    justify-content: flex-start !important;
+    text-align: left !important;
+  }
+}
+
+@media (max-width: 650px) {
+  .nanyang-content .ov-factories,
+  .nanyang-content .ov02-factories,
+  .nanyang-content .mve-factories,
+  .nanyang-content .ml-factories,
+  .nanyang-content .vvic-factories,
+  .nanyang-content > main.page > .topbar .tabs {
+    height: auto !important;
+    min-height: 56px !important;
+    flex-wrap: wrap !important;
+  }
+}
