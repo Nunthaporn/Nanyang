@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useState } from "react";
 
 const ExecutiveSummaryDashboard = lazy(() => import("./executive/ExecutiveSummaryDashboard"));
 const OverviewDashboard = lazy(() => import("./overview/OverviewDashboard"));
@@ -9,119 +9,9 @@ const EasyLeanDashboard = lazy(() => import("./easy-lean/EasyLeanDashboard"));
 const VVICDashboard = lazy(() => import("./vvic/VVICDashboard"));
 
 type DashboardKey = "executive" | "overview" | "overview02" | "min-vs-eff" | "model-line" | "easy-lean" | "vvic";
-type SharedDates = { startDate: string; endDate: string };
-
-const DATE_STORAGE_KEY = "nanyang-shared-date-filter";
-
-const readStoredDates = (): SharedDates => {
-  try {
-    const raw = sessionStorage.getItem(DATE_STORAGE_KEY);
-    if (!raw) return { startDate: "", endDate: "" };
-    const parsed = JSON.parse(raw);
-    return {
-      startDate: typeof parsed?.startDate === "string" ? parsed.startDate : "",
-      endDate: typeof parsed?.endDate === "string" ? parsed.endDate : "",
-    };
-  } catch {
-    return { startDate: "", endDate: "" };
-  }
-};
-
-const setNativeDateValue = (input: HTMLInputElement, value: string) => {
-  if (!value || input.value === value) return false;
-  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
-  if (setter) setter.call(input, value);
-  else input.value = value;
-  input.dispatchEvent(new Event("input", { bubbles: true }));
-  input.dispatchEvent(new Event("change", { bubbles: true }));
-  return true;
-};
 
 export default function App() {
   const [active, setActive] = useState<DashboardKey>("executive");
-  const [sharedDates, setSharedDates] = useState<SharedDates>(() => readStoredDates());
-  const syncingDatesRef = useRef(false);
-
-  const applySharedDates = useCallback(() => {
-    if (!sharedDates.startDate || !sharedDates.endDate) return false;
-    const inputs = Array.from(document.querySelectorAll<HTMLInputElement>(".nanyang-content input[type='date']"));
-    if (inputs.length < 2) return false;
-
-    const startNeedsChange = inputs[0].value !== sharedDates.startDate;
-    const endNeedsChange = inputs[1].value !== sharedDates.endDate;
-    if (!startNeedsChange && !endNeedsChange) return false;
-
-    syncingDatesRef.current = true;
-    try {
-      if (startNeedsChange) setNativeDateValue(inputs[0], sharedDates.startDate);
-      if (endNeedsChange) setNativeDateValue(inputs[1], sharedDates.endDate);
-    } finally {
-      syncingDatesRef.current = false;
-    }
-    return true;
-  }, [sharedDates]);
-
-  useEffect(() => {
-    if (!sharedDates.startDate || !sharedDates.endDate) return;
-    sessionStorage.setItem(DATE_STORAGE_KEY, JSON.stringify(sharedDates));
-  }, [sharedDates]);
-
-  // Overview initializes its own /filters request later than the other tabs and can
-  // overwrite the shared range after the first sync. Keep a lightweight bounded
-  // re-apply window for longer on Overview only; no DOM observer is used.
-  useEffect(() => {
-    if (!sharedDates.startDate || !sharedDates.endDate) return;
-
-    let attempts = 0;
-    let stableMatches = 0;
-    const maxAttempts = active === "overview" ? 48 : 18;
-    const requiredStableMatches = active === "overview" ? 8 : 3;
-
-    const sync = () => {
-      const inputs = Array.from(document.querySelectorAll<HTMLInputElement>(".nanyang-content input[type='date']"));
-      const matches = inputs.length >= 2
-        && inputs[0].value === sharedDates.startDate
-        && inputs[1].value === sharedDates.endDate;
-
-      if (matches) {
-        stableMatches += 1;
-      } else {
-        stableMatches = 0;
-        applySharedDates();
-      }
-
-      attempts += 1;
-      if (attempts >= maxAttempts || stableMatches >= requiredStableMatches) {
-        window.clearInterval(timer);
-      }
-    };
-
-    const first = window.setTimeout(sync, 0);
-    const timer = window.setInterval(sync, 150);
-
-    return () => {
-      window.clearTimeout(first);
-      window.clearInterval(timer);
-    };
-  }, [active, sharedDates, applySharedDates]);
-
-  const captureDateFilter = (event: React.ChangeEvent<HTMLElement>) => {
-    if (syncingDatesRef.current) return;
-
-    const target = event.target;
-    if (!(target instanceof HTMLInputElement) || target.type !== "date") return;
-
-    const root = event.currentTarget;
-    const inputs = Array.from(root.querySelectorAll<HTMLInputElement>("input[type='date']"));
-    if (inputs.length < 2) return;
-
-    const next = { startDate: inputs[0].value, endDate: inputs[1].value };
-    if (!next.startDate || !next.endDate) return;
-
-    setSharedDates((current) =>
-      current.startDate === next.startDate && current.endDate === next.endDate ? current : next,
-    );
-  };
 
   return (
     <div className="nanyang-shell">
@@ -141,7 +31,7 @@ export default function App() {
         </nav>
       </header>
 
-      <main className="nanyang-content" onChangeCapture={captureDateFilter}>
+      <main className="nanyang-content">
         <Suspense fallback={<div className="nanyang-loading">Loading dashboard...</div>}>
           {active === "executive" && <ExecutiveSummaryDashboard />}
           {active === "overview" && <OverviewDashboard />}
