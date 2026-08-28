@@ -35,6 +35,8 @@ const formatRefresh = (value?: string | null) => {
   }).format(new Date(value));
 };
 
+const FACTORY_TABS = ["ALL", "G1", "G2", "G3", "G4", "TRM", "EA"];
+
 export default function EasyLeanDashboard() {
   const [meta, setMeta] = useState<FilterMeta | null>(null);
   const [startDate, setStartDate] = useState("");
@@ -144,11 +146,7 @@ export default function EasyLeanDashboard() {
   };
 
   const year = useMemo(() => (endDate ? endDate.slice(0, 4) : ""), [endDate]);
-  // The unified Easy Lean CSS visually reorders the source buttons from
-  // ALL, EA, G1, G2, G3, G4, TRM -> ALL, G1, G2, G3, G4, TRM, EA.
-  const factoryOrder = ["EA", "G1", "G2", "G3", "G4", "TRM"];
-  const available = new Set(meta?.factories ?? []);
-  const factories = ["ALL", ...factoryOrder.filter((name) => available.has(name))];
+  const factories = FACTORY_TABS;
   const refreshLabel = formatRefresh(summary?.last_refresh);
 
   return (
