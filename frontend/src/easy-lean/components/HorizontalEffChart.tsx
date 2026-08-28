@@ -17,13 +17,25 @@ export default function HorizontalEffChart({ data, selectedFactory, onSelect }: 
     animationDuration: 250,
     tooltip: {
       trigger: "item",
-      confine: false,
-      appendToBody: true,
+      confine: true,
       backgroundColor: "#fff",
       borderColor: "#d7dee8",
       borderWidth: 1,
       padding: 0,
-      extraCssText: "box-shadow:0 8px 24px rgba(20,35,60,.18);border-radius:4px;max-width:none;",
+      extraCssText: "box-shadow:0 8px 24px rgba(20,35,60,.18);border-radius:4px;max-width:420px;",
+      position: (point: number[], _params: any, _dom: HTMLElement, _rect: any, size: any) => {
+        const [x, y] = point;
+        const contentWidth = Math.min(size.contentSize[0], 420);
+        const contentHeight = size.contentSize[1];
+        const viewWidth = size.viewSize[0];
+        const viewHeight = size.viewSize[1];
+        let left = x + 12;
+        let top = y - contentHeight / 2;
+        if (left + contentWidth > viewWidth - 8) left = x - contentWidth - 12;
+        left = Math.max(8, Math.min(left, viewWidth - contentWidth - 8));
+        top = Math.max(8, Math.min(top, viewHeight - contentHeight - 8));
+        return [left, top];
+      },
       formatter: (params: any) => {
         const row = data[params.dataIndex];
         if (!row) return "";
@@ -32,30 +44,30 @@ export default function HorizontalEffChart({ data, selectedFactory, onSelect }: 
           .sort((a,b) => Number(b.eff_pct) - Number(a.eff_pct));
 
         if (!products.length) {
-          return `<div style="padding:10px 12px;min-width:240px"><div style="font-size:12px;font-weight:700;color:#24324a">EFF% by Product Type</div><div style="font-size:10px;color:#7b8799;margin-top:3px">${esc(row.factory)}</div><div style="margin-top:8px;color:#94a3b8;font-size:11px">No Product Type data</div></div>`;
+          return `<div style="padding:10px 12px;width:250px;box-sizing:border-box"><div style="font-size:12px;font-weight:700;color:#24324a">EFF% by Product Type</div><div style="font-size:10px;color:#7b8799;margin-top:3px">${esc(row.factory)}</div><div style="margin-top:8px;color:#94a3b8;font-size:11px">No Product Type data</div></div>`;
         }
 
-        const columns = products.length > 18 ? 4 : products.length > 10 ? 3 : products.length > 5 ? 2 : 1;
-        const columnWidth = columns === 1 ? 230 : 170;
-        const tooltipWidth = columns * columnWidth;
+        const columns = products.length > 12 ? 3 : products.length > 6 ? 2 : 1;
+        const tooltipWidth = columns === 3 ? 408 : columns === 2 ? 336 : 250;
         const maximum = Math.max(...products.map(x => Number(x.eff_pct) || 0), .01);
+        const barMax = columns === 1 ? 120 : columns === 2 ? 78 : 58;
         const detail = products.map(x => {
           const value = Number(x.eff_pct);
-          const width = Math.max(8, Math.min(columns === 1 ? 145 : 95, (value / maximum) * (columns === 1 ? 145 : 95)));
+          const width = Math.max(6, Math.min(barMax, (value / maximum) * barMax));
           const name = x.product_type || "OTHER";
-          return `<div style="min-width:0;padding:5px 7px;border-radius:4px;background:#f8fafc">
-            <div style="font-size:10px;color:#536176;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px">${esc(name)}</div>
-            <div style="display:flex;align-items:center;gap:6px">
-              <span style="display:block;width:${width}px;height:10px;border-radius:2px;background:${colorFor(name)}"></span>
-              <b style="font-size:10px;color:#172033;white-space:nowrap">${(value * 100).toFixed(1)}%</b>
+          return `<div style="min-width:0;padding:5px 6px;border-radius:4px;background:#f8fafc;box-sizing:border-box">
+            <div style="font-size:9px;color:#536176;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px" title="${esc(name)}">${esc(name)}</div>
+            <div style="display:flex;align-items:center;gap:5px;min-width:0">
+              <span style="display:block;flex:0 0 auto;width:${width}px;height:9px;border-radius:2px;background:${colorFor(name)}"></span>
+              <b style="font-size:9px;color:#172033;white-space:nowrap">${(value * 100).toFixed(1)}%</b>
             </div>
           </div>`;
         }).join("");
 
-        return `<div style="padding:10px 12px;width:${tooltipWidth}px;box-sizing:border-box">
+        return `<div style="padding:9px 10px;width:${tooltipWidth}px;max-width:420px;box-sizing:border-box">
           <div style="font-size:12px;font-weight:700;color:#24324a">EFF% by Product Type</div>
-          <div style="font-size:10px;color:#7b8799;margin-top:3px;margin-bottom:8px">${esc(row.factory)}</div>
-          <div style="display:grid;grid-template-columns:repeat(${columns},minmax(0,1fr));gap:6px">${detail}</div>
+          <div style="font-size:10px;color:#7b8799;margin-top:2px;margin-bottom:7px">${esc(row.factory)}</div>
+          <div style="display:grid;grid-template-columns:repeat(${columns},minmax(0,1fr));gap:5px">${detail}</div>
         </div>`;
       },
     },
