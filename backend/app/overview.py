@@ -123,6 +123,14 @@ def build_overview_router(get_db):
             WHERE produce_date BETWEEN GREATEST(selected_start,selected_end-29) AND selected_end
             GROUP BY produce_date HAVING SUM(min_input)<>0
         ),
+        last30_factory AS (
+            SELECT produce_date, factory,
+                   SUM(min_output)/NULLIF(SUM(min_input),0) AS eff_pct
+            FROM base CROSS JOIN bounds
+            WHERE produce_date BETWEEN GREATEST(selected_start,selected_end-29) AND selected_end
+            GROUP BY produce_date, factory
+            HAVING SUM(min_input)<>0
+        ),
         factory_monthly AS (
             SELECT DATE_TRUNC('month',produce_date)::date AS month_date,
                    factory,
@@ -146,6 +154,7 @@ def build_overview_router(get_db):
                 ORDER BY CASE period WHEN 'YTD' THEN 1 WHEN 'QTD' THEN 2 WHEN 'MTD' THEN 3 ELSE 4 END,eff_pct DESC NULLS LAST,factory) FROM factory_periods),'[]'::jsonb),
             'monthly', COALESCE((SELECT JSONB_AGG(JSONB_BUILD_OBJECT('month',month_date,'eff_pct',eff_pct) ORDER BY month_date) FROM monthly),'[]'::jsonb),
             'last30', COALESCE((SELECT JSONB_AGG(JSONB_BUILD_OBJECT('produce_date',produce_date,'eff_pct',eff_pct) ORDER BY produce_date) FROM last30),'[]'::jsonb),
+            'last30_factory', COALESCE((SELECT JSONB_AGG(JSONB_BUILD_OBJECT('produce_date',produce_date,'factory',factory,'eff_pct',eff_pct) ORDER BY produce_date,factory) FROM last30_factory),'[]'::jsonb),
             'factory_monthly', COALESCE((SELECT JSONB_AGG(JSONB_BUILD_OBJECT('month',month_date,'factory',factory,'eff_pct',eff_pct) ORDER BY month_date,factory) FROM factory_monthly),'[]'::jsonb),
             'factory_monthly_product', COALESCE((SELECT JSONB_AGG(JSONB_BUILD_OBJECT('month',month_date,'factory',factory,'product_type',product_type,'eff_pct',eff_pct) ORDER BY month_date,factory,eff_pct DESC NULLS LAST,product_type) FROM factory_monthly_product),'[]'::jsonb),
             'latest_date',(SELECT ld FROM latest_date)
@@ -166,7 +175,7 @@ def build_overview_router(get_db):
         p = params(start_date,end_date,factory)
         try:
             row = db.execute(DASHBOARD_SQL,p).mappings().first()
-            payload = dict(row["payload"]) if row and row["payload"] else {"kpis":{},"kpi_details":{},"factory_periods":[],"monthly":[],"last30":[],"factory_monthly":[],"factory_monthly_product":[],"latest_date":None}
+            payload = dict(row["payload"]) if row and row["payload"] else {"kpis":{},"kpi_details":{},"factory_periods":[],"monthly":[],"last30":[],"last30_factory":[],"factory_monthly":[],"factory_monthly_product":[],"latest_date":None}
             payload["last_refresh"] = datetime.now().astimezone()
             return payload
         except Exception as exc:
