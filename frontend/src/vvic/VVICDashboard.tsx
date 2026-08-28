@@ -70,9 +70,10 @@ export default function VVICDashboard(){
       <label>START DATE<input type="date" value={f.start_date} onChange={e=>{clear();setF(v=>({...v,start_date:e.target.value}));}}/></label>
       <label>END DATE<input type="date" value={f.end_date} onChange={e=>{clear();setF(v=>({...v,end_date:e.target.value}));}}/></label>
       <div className="vvic-factories"><button className={!f.factory.length?"sel":""} onClick={()=>selectFactory("ALL")}>ALL</button>{FACTORIES.map(x=><button key={x} className={f.factory[0]===x?"sel":""} onClick={()=>selectFactory(x)}>{x}</button>)}</div>
+      <div className="vvic-refresh-time">REFRESH: {summary?new Date(summary.last_refresh).toLocaleString("th-TH"):"—"}</div>
     </header>
 
-    <div className="vvic-status"><span className="vvic-dot"/>{filterLabel}{filterLabel&&<button className="vvic-clear-filter" onClick={clear}>CLEAR SELECTION</button>}<span className="vvic-refresh-time">REFRESH: {summary?new Date(summary.last_refresh).toLocaleString("th-TH"):"—"}</span></div>
+    <div className="vvic-status"><span className="vvic-dot"/>{filterLabel}{filterLabel&&<button className="vvic-clear-filter" onClick={clear}>CLEAR SELECTION</button>}</div>
     {error&&<div className="vvic-error"><b>{error}</b><button onClick={()=>setRefresh(x=>x+1)}>ลองใหม่</button></div>}
 
     <section className="vvic-grid-layout">
