@@ -180,12 +180,20 @@
   column-gap: var(--dash-chart-gap) !important;
 }
 
-/* Containers that separate rows with margins instead of CSS gap. */
+/* Containers that still separate rows with margins instead of a parent CSS gap. */
 .nanyang-content .ov-kpis,
-.nanyang-content .ml-kpis,
-.nanyang-content .ml-top-grid,
 .nanyang-content .vvic-kpis {
   margin-bottom: var(--dash-chart-gap) !important;
+}
+
+/* Model-Line now uses .ml-body as the single spacing owner. Do not add another
+   14px margin to KPI/top-grid or it becomes 28px. */
+.nanyang-content .ml-kpis,
+.nanyang-content .ml-top-grid,
+.nanyang-content .ml-bottom-grid,
+.nanyang-content .ml-card {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
 }
 
 /* Remove duplicate margins where a parent already supplies the 14px gap. */
