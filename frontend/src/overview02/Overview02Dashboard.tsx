@@ -144,7 +144,7 @@ export default function Overview02Dashboard() {
     } },
     xAxis: { type: "category", data: rows.map((x) => x.name), axisLabel: { interval: 0, rotate: rows.length > 8 ? 48 : 38, fontSize: 10, width: 80, overflow: "truncate" }, axisTick: { show: false } },
     yAxis: { type: "value", min: 0, axisLabel: { formatter: (v: number) => `${Math.round(v * 100)}%` }, splitLine: { lineStyle: { color: "#dce6f1", type: "dashed" } } },
-    dataZoom: scroll && rows.length > 12 ? [{ type: "inside", startValue: 0, endValue: 11 }, { type: "slider", height: 11, bottom: 5, showDetail: false }] : [],
+    dataZoom: scroll && rows.length > 12 ? [{ type: "inside", startValue: 0, endValue: 11, zoomLock: true, zoomOnMouseWheel: false, moveOnMouseWheel: false, moveOnMouseMove: true }, { type: "slider", startValue: 0, endValue: 11, zoomLock: true, height: 11, bottom: 5, showDetail: false, brushSelect: false }] : [],
     series: [{
       type: "bar", barMaxWidth: 48,
       data: rows.map((x) => ({ value: x.eff, itemStyle: { color: x.eff >= TARGET ? "#22b957" : "#ef5560", opacity: selected && selected !== x.name ? 0.25 : 1, borderRadius: [4, 4, 0, 0] } })),
