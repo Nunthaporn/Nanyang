@@ -1,10 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-import importlib
-import importlib.util
 from pathlib import Path
-import sys
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,33 +9,13 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from . import vvic_config
+from . import vvic_database
+from . import vvic_mock_data as vvic_mock
+from . import vvic_repository
+from .easy_router import router as easy_router
+
 ROOT = Path(__file__).resolve().parents[2]
-
-
-def load_package(name: str, package_dir: Path):
-    spec = importlib.util.spec_from_file_location(
-        name,
-        package_dir / "__init__.py",
-        submodule_search_locations=[str(package_dir)],
-    )
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Cannot load package {name}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-load_package("vvic_src", ROOT / "apps" / "vvic" / "backend" / "app")
-load_package("easy_src", ROOT / "apps" / "easy-lean" / "backend" / "app")
-
-vvic_config = importlib.import_module("vvic_src.config")
-vvic_database = importlib.import_module("vvic_src.database")
-vvic_mock = importlib.import_module("vvic_src.mock_data")
-vvic_repository = importlib.import_module("vvic_src.repository")
-easy_database = importlib.import_module("easy_src.database")
-easy_router = importlib.import_module("easy_src.routers.easylean").router
-
 settings = vvic_config.get_settings()
 get_db = vvic_database.get_db
 
@@ -143,16 +120,16 @@ def details(page: int = 1, page_size: int = Query(50, le=200)):
     return {"items": [], "page": page, "page_size": page_size, "total": 0}
 
 
-# EFF Last date by Line follows the Power BI relationship:
-#   teffdata.FACTORY (*:1) mt_factory.FACTORY
-# Factory comes from mt_factory; EasyLean Line/Date/EFF fields come from teffdata.
-# UPPER+BTRIM prevents EA from disappearing because of spaces/case differences.
 EASY_LATEST_BY_LINE_SQL = text(r'''
 WITH prepared AS (
     SELECT
         UPPER(BTRIM(mf."FACTORY"::text)) AS factory,
         e."Date"::date AS produce_date,
-        NULLIF(BTRIM(e."EasyLean Line"::text), '') AS display_line,
+        CASE
+            WHEN UPPER(BTRIM(mf."FACTORY"::text)) = 'EA'
+            THEN NULLIF(BTRIM(e."Line"::text), '')
+            ELSE NULLIF(BTRIM(e."EasyLean Line"::text), '')
+        END AS display_line,
         COALESCE(NULLIF(BTRIM(e."PD_Type"::text), ''), 'OTHER') AS product_type,
         NULLIF(REPLACE(BTRIM(e."Min Output"::text), ',', ''), '')::numeric AS min_output_num,
         NULLIF(REPLACE(BTRIM(e."Min Input"::text), ',', ''), '')::numeric AS min_input_num
@@ -171,17 +148,21 @@ WITH prepared AS (
         )
         AND (
             CAST(:selected_line AS text) IS NULL
-            OR NULLIF(BTRIM(e."EasyLean Line"::text), '') = BTRIM(CAST(:selected_line AS text))
+            OR CASE
+                WHEN UPPER(BTRIM(mf."FACTORY"::text)) = 'EA'
+                THEN NULLIF(BTRIM(e."Line"::text), '')
+                ELSE NULLIF(BTRIM(e."EasyLean Line"::text), '')
+               END = BTRIM(CAST(:selected_line AS text))
         )
         AND (
             CAST(:selected_line_factory AS text) IS NULL
             OR UPPER(BTRIM(mf."FACTORY"::text)) = UPPER(BTRIM(CAST(:selected_line_factory AS text)))
         )
-        AND NULLIF(BTRIM(e."EasyLean Line"::text), '') IS NOT NULL
 ),
 latest_by_line AS (
     SELECT factory, display_line, MAX(produce_date) AS latest_date
     FROM prepared
+    WHERE display_line IS NOT NULL
     GROUP BY factory, display_line
 ),
 latest_data AS (
@@ -193,64 +174,42 @@ latest_data AS (
        AND p.produce_date = l.latest_date
 ),
 line_total AS (
-    SELECT
-        factory,
-        display_line AS line,
-        SUM(min_output_num) / NULLIF(SUM(min_input_num), 0) AS eff_pct
+    SELECT factory, display_line AS line,
+           SUM(min_output_num) / NULLIF(SUM(min_input_num), 0) AS eff_pct
     FROM latest_data
     GROUP BY factory, display_line
 ),
 product_type_eff AS (
-    SELECT
-        factory,
-        display_line AS line,
-        product_type,
-        SUM(min_output_num) / NULLIF(SUM(min_input_num), 0) AS eff_pct
+    SELECT factory, display_line AS line, product_type,
+           SUM(min_output_num) / NULLIF(SUM(min_input_num), 0) AS eff_pct
     FROM latest_data
     GROUP BY factory, display_line, product_type
 ),
 product_json AS (
-    SELECT
-        factory,
-        line,
-        JSONB_AGG(
-            JSONB_BUILD_OBJECT('product_type', product_type, 'eff_pct', eff_pct)
-            ORDER BY eff_pct DESC NULLS LAST, product_type
-        ) AS product_types
+    SELECT factory, line,
+           JSONB_AGG(
+               JSONB_BUILD_OBJECT('product_type', product_type, 'eff_pct', eff_pct)
+               ORDER BY eff_pct DESC NULLS LAST, product_type
+           ) AS product_types
     FROM product_type_eff
     GROUP BY factory, line
 )
-SELECT
-    l.factory,
-    l.line,
-    l.eff_pct,
-    COALESCE(p.product_types, '[]'::jsonb) AS product_types
+SELECT l.factory, l.line, l.eff_pct,
+       COALESCE(p.product_types, '[]'::jsonb) AS product_types
 FROM line_total l
-LEFT JOIN product_json p
-    ON p.factory = l.factory
-   AND p.line = l.line
-WHERE l.eff_pct IS NOT NULL
-  AND l.eff_pct > 0
+LEFT JOIN product_json p ON p.factory = l.factory AND p.line = l.line
+WHERE l.eff_pct IS NOT NULL AND l.eff_pct > 0
 ORDER BY
     CASE l.factory
-        WHEN 'G1' THEN 1
-        WHEN 'G2' THEN 2
-        WHEN 'G3' THEN 3
-        WHEN 'G4' THEN 4
-        WHEN 'TRM' THEN 5
-        WHEN 'EA' THEN 6
-        ELSE 99
+        WHEN 'G1' THEN 1 WHEN 'G2' THEN 2 WHEN 'G3' THEN 3 WHEN 'G4' THEN 4 WHEN 'TRM' THEN 5 WHEN 'EA' THEN 6 ELSE 99
     END,
     CASE WHEN l.line ~ '^[0-9]+$' THEN l.line::integer ELSE 999999 END,
     l.line
 ''')
 
-
 EA_DEBUG_SQL = text(r'''
 SELECT
-    COUNT(*) FILTER (
-        WHERE UPPER(BTRIM(e."FACTORY"::text)) = 'EA'
-    ) AS teffdata_ea_rows,
+    COUNT(*) FILTER (WHERE UPPER(BTRIM(e."FACTORY"::text)) = 'EA') AS teffdata_ea_rows,
     COUNT(*) FILTER (
         WHERE UPPER(BTRIM(e."FACTORY"::text)) = 'EA'
           AND NULLIF(BTRIM(e."EasyLean Line"::text), '') IS NOT NULL
@@ -262,12 +221,8 @@ SELECT
     COUNT(DISTINCT NULLIF(BTRIM(e."EasyLean Line"::text), '')) FILTER (
         WHERE UPPER(BTRIM(e."FACTORY"::text)) = 'EA'
     ) AS ea_easylean_line_count,
-    MIN(e."Date"::date) FILTER (
-        WHERE UPPER(BTRIM(e."FACTORY"::text)) = 'EA'
-    ) AS ea_min_date,
-    MAX(e."Date"::date) FILTER (
-        WHERE UPPER(BTRIM(e."FACTORY"::text)) = 'EA'
-    ) AS ea_max_date
+    MIN(e."Date"::date) FILTER (WHERE UPPER(BTRIM(e."FACTORY"::text)) = 'EA') AS ea_min_date,
+    MAX(e."Date"::date) FILTER (WHERE UPPER(BTRIM(e."FACTORY"::text)) = 'EA') AS ea_max_date
 FROM public.teffdata e
 LEFT JOIN public.mt_factory mf
     ON UPPER(BTRIM(e."FACTORY"::text)) = UPPER(BTRIM(mf."FACTORY"::text))
@@ -286,7 +241,6 @@ def easy_latest_by_line(
 ):
     if start_date > end_date:
         raise HTTPException(status_code=422, detail="start_date must be <= end_date")
-
     values = {
         "start_date": start_date,
         "end_date": end_date,
@@ -295,9 +249,8 @@ def easy_latest_by_line(
         "selected_line": selected_line or None,
         "selected_line_factory": selected_line_factory or None,
     }
-
     try:
-        with easy_database.engine.connect() as conn:
+        with vvic_database.engine.connect() as conn:
             result = conn.execute(EASY_LATEST_BY_LINE_SQL, values)
             return [dict(row) for row in result.mappings().all()]
     except Exception as exc:
@@ -309,7 +262,7 @@ def easy_debug_ea(start_date: date, end_date: date):
     if start_date > end_date:
         raise HTTPException(status_code=422, detail="start_date must be <= end_date")
     try:
-        with easy_database.engine.connect() as conn:
+        with vvic_database.engine.connect() as conn:
             row = conn.execute(
                 EA_DEBUG_SQL,
                 {"start_date": start_date, "end_date": end_date},
@@ -319,7 +272,6 @@ def easy_debug_ea(start_date: date, end_date: date):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-# Include original Easy Lean routes after overrides.
 app.include_router(easy_router)
 
 
