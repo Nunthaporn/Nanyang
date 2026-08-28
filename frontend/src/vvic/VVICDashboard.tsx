@@ -73,7 +73,7 @@ export default function VVICDashboard(){
       <div className="vvic-refresh-time">REFRESH: {summary?new Date(summary.last_refresh).toLocaleString("th-TH"):"—"}</div>
     </header>
 
-    {filterLabel&&<div className="vvic-status">{filterLabel}<button className="vvic-clear-filter" onClick={clear}>CLEAR SELECTION</button></div>}
+    <div className="vvic-status">{filterLabel}{filterLabel&&<button className="vvic-clear-filter" onClick={clear}>CLEAR SELECTION</button>}</div>
     {error&&<div className="vvic-error"><b>{error}</b><button onClick={()=>setRefresh(x=>x+1)}>ลองใหม่</button></div>}
 
     <section className="vvic-grid-layout">
