@@ -19,12 +19,11 @@ MIN_INPUT = numeric_expr('e."Min Input"')
 OUTPUT_PCS = numeric_expr('e."Output pcs"')
 MAN_OUT = numeric_expr('e."Man_%Out"')
 
+# EASY LEAN charts must consistently use EasyLean Line for every factory.
+# Do not switch EA back to the raw Line column; that was the old logic and
+# changes the categories/values shown by EFF Last date by Line.
 DISPLAY_LINE = """
-CASE
-    WHEN e."FACTORY"::text = 'EA'
-    THEN NULLIF(BTRIM(e."Line"::text), '')
-    ELSE NULLIF(BTRIM(e."EasyLean Line"::text), '')
-END
+NULLIF(BTRIM(e."EasyLean Line"::text), '')
 """
 
 BASE_FILTER = f"""
