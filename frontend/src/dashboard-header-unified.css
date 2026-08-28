@@ -1,5 +1,5 @@
 /* Shared dashboard header sizing.
-   Keep factory tabs and refresh text visually consistent across all dashboard pages. */
+   Keep date filters, factory tabs and refresh text visually consistent across dashboard pages. */
 
 :root {
   --dash-filter-height: 56px;
@@ -9,6 +9,42 @@
   --dash-filter-text: #304d7a;
   --dash-filter-active: #0757d7;
   --dash-refresh-text: #6b7fa3;
+}
+
+/* Date controls on Overview / Overview02 / MinVSEff / Model-Line.
+   Their outer height now exactly matches the factory tab bar. */
+.nanyang-content .ov-header label,
+.nanyang-content .ov02-header label,
+.nanyang-content .mve-date-card,
+.nanyang-content .ml-header label {
+  height: var(--dash-filter-height) !important;
+  min-height: var(--dash-filter-height) !important;
+  max-height: var(--dash-filter-height) !important;
+  padding: 7px 12px 5px !important;
+  border: 1px solid #cbd9e8 !important;
+  border-radius: var(--dash-filter-radius) !important;
+  background: #fff !important;
+  box-sizing: border-box !important;
+  justify-content: center !important;
+}
+
+.nanyang-content .ov-header label span,
+.nanyang-content .ov02-header label span,
+.nanyang-content .mve-date-card span,
+.nanyang-content .ml-header label span {
+  margin: 0 0 2px !important;
+  line-height: 1.05 !important;
+}
+
+.nanyang-content .ov-header input,
+.nanyang-content .ov02-header input,
+.nanyang-content .mve-date-card input,
+.nanyang-content .ml-header input {
+  min-height: 20px !important;
+  margin: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  box-sizing: border-box !important;
 }
 
 /* Factory/tab containers */
