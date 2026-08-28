@@ -26,11 +26,12 @@
 .nanyang-content > main.page > .topbar h1,
 .nanyang-content > main.page .easy-title-wrap h1 {
   margin: 0 !important;
-  color: #111827 !important;
-  font-size: 26px !important;
-  line-height: 1.15 !important;
-  font-weight: 600 !important;
-  letter-spacing: -.02em;
+  color: #0b1730 !important;
+  font-family: Georgia, "Times New Roman", serif !important;
+  font-size: 31px !important;
+  line-height: 1.05 !important;
+  font-weight: 700 !important;
+  letter-spacing: -.02em !important;
   white-space: nowrap;
 }
 
