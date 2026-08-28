@@ -104,7 +104,7 @@ export default function LatestLineChart({ data, selectedLine, onSelect }: Props)
       padding: 0,
       extraCssText: "box-shadow:0 8px 24px rgba(20,35,60,.18);border-radius:4px;",
       formatter: (params: any) => {
-        if (params.seriesName === "__factory_separator__") return "";
+        if (params.seriesName === "__factory_separator__" || params.seriesName === "__target__") return "";
         const row = sortedData[params.dataIndex];
         return row ? productTypeHtml(row) : "";
       },
@@ -172,10 +172,19 @@ export default function LatestLineChart({ data, selectedLine, onSelect }: Props)
           color: "#333",
           formatter: (params: any) => `${Math.round(Number(params.value) * 100)}%`,
         },
+      },
+      {
+        name: "__target__",
+        type: "line",
+        xAxisIndex: 0,
+        silent: true,
+        symbol: "none",
+        lineStyle: { opacity: 0 },
+        data: [],
         markLine: {
           silent: true,
           symbol: "none",
-          z: 100,
+          z: 20,
           lineStyle: {
             color: "#3f67d3",
             type: "dashed",
