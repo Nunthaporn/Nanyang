@@ -160,26 +160,17 @@
 .nanyang-content .vvic-status:not(:empty) { margin: 0 0 var(--dash-header-bottom-gap) !important; }
 .nanyang-content > main.page > .dashboard { margin-top: 0 !important; }
 
-/* Standardize the space BETWEEN dashboard cards/charts to 14px.
-   We target the page-level grid/flex containers rather than the chart internals,
-   so chart sizes and ECharts rendering are not changed. */
+/* Page-level chart/card gaps: exactly one 14px spacing layer. */
 .nanyang-content .ex-grid,
-.nanyang-content .ex-main-grid,
-.nanyang-content .ex-content,
 .nanyang-content .ov-grid,
-.nanyang-content .ov-main,
-.nanyang-content .ov-content,
 .nanyang-content .ov02-grid,
-.nanyang-content .ov02-content,
 .nanyang-content .mve-grid,
-.nanyang-content .mve-content,
+.nanyang-content .mve-right-stack,
 .nanyang-content .ml-grid,
-.nanyang-content .ml-content,
 .nanyang-content .vvic-grid-layout,
-.nanyang-content .vvic-left,
 .nanyang-content .vvic-right,
-.nanyang-content .vvic-kpis,
-.nanyang-content > main.page > .dashboard,
+.nanyang-content > main.page .ez-content,
+.nanyang-content > main.page .content,
 .nanyang-content > main.page .ez-top-charts,
 .nanyang-content > main.page .ez-bottom-charts,
 .nanyang-content > main.page .top-charts,
@@ -189,12 +180,24 @@
   column-gap: var(--dash-chart-gap) !important;
 }
 
-/* Common adjacent card rows that use margins instead of gap. */
+/* Containers that separate rows with margins instead of CSS gap. */
+.nanyang-content .ov-kpis,
+.nanyang-content .ml-kpis,
+.nanyang-content .ml-top-grid,
+.nanyang-content .vvic-kpis {
+  margin-bottom: var(--dash-chart-gap) !important;
+}
+
+/* Remove duplicate margins where a parent already supplies the 14px gap. */
 .nanyang-content .vvic-trend,
+.nanyang-content .vvic-factory-card,
 .nanyang-content .vvic-customer-card,
+.nanyang-content > main.page .ez-top-charts,
 .nanyang-content > main.page .ez-bottom-charts,
+.nanyang-content > main.page .top-charts,
 .nanyang-content > main.page .bottom-charts {
-  margin-top: var(--dash-chart-gap) !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
 }
 
 @media (max-width: 1180px) {
