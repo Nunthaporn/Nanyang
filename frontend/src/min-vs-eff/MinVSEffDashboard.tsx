@@ -40,7 +40,13 @@ function CustomerBarChart({ rows, selected, onSelect }: { rows: CustomerRow[]; s
   const option = useMemo(() => ({
     animationDuration: 300,
     grid: { left: 12, right: 62, top: 8, bottom: 8, containLabel: true },
-    tooltip: { trigger: "item", formatter: (p: any) => `<b>${p.name}</b><br/>MTD EFF%: ${Number(p.value).toFixed(2)}%` },
+    tooltip: {
+      trigger: "item",
+      formatter: (p: any) => {
+        const row = safeRows[p.dataIndex];
+        return `<b>Cust: ${row?.customer ?? p.name ?? ""}</b><br/>MTD EFF%: ${Number(p.value).toFixed(2)}%`;
+      },
+    },
     xAxis: { type: "value", min: 0, max: 110, show: false },
     yAxis: { type: "category", inverse: true, data: safeRows.map((r) => r.customer), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: "#30384a", fontSize: 10, width: 220, overflow: "truncate" } },
     series: [{
