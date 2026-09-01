@@ -7,6 +7,7 @@ import "./vvic-overrides.css";
 import "./easy-lean-overrides.css";
 import "./easy-lean-title-position.css";
 import "./dashboard-header-unified.css";
+import "./vvic-header-fix.css";
 
 // One visual standard for every Target reference line in every dashboard tab.
 // This runs before ECharts renders each option, so local chart settings cannot
