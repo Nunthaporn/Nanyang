@@ -14,9 +14,8 @@ export const lineOption=(d:Month[],selectedMonth:string|null):EChartsOption=>({
     const vv=rows.find((x:any)=>x.seriesName==="VVIC")?.value;const nv=rows.find((x:any)=>x.seriesName==="NON-VVIC")?.value;
     return `<div style="min-width:150px;padding:4px 2px"><div style="font-weight:700;margin-bottom:10px">${esc(String(month))}</div><div style="display:flex;justify-content:space-between;gap:20px;margin-bottom:8px"><span>VVIC</span><b>${pct(vv==null?null:Number(vv))}</b></div><div style="display:flex;justify-content:space-between;gap:20px"><span>NON-VVIC</span><b>${pct(nv==null?null:Number(nv))}</b></div></div>`;
   }},
-  grid:{left:65,right:25,top:35,bottom:82},xAxis:{type:"category",data:d.map(x=>x.month),axisLabel:{rotate:45}},
+  grid:{left:65,right:25,top:35,bottom:56},xAxis:{type:"category",data:d.map(x=>x.month),axisLabel:{rotate:45}},
   yAxis:{type:"value",axisLabel:{formatter:(v:number)=>`${Math.round(v*100)}%`},splitLine:{lineStyle:{type:"dashed",color:"#d9e4f2"}}},
-  dataZoom:[{type:"inside"},{type:"slider",height:13,bottom:8}],
   series:[
     {name:"VVIC",type:"line",smooth:true,connectNulls:false,symbolSize:10,lineStyle:{opacity:selectedMonth ? .28 : 1},data:d.map(x=>({value:x.vvic,itemStyle:{opacity:!selectedMonth||x.month===selectedMonth?1:.2}})),label:{show:true,formatter:(x:any)=>pct(x.value),fontWeight:"bold",color:"#0586a7"}},
     {name:"NON-VVIC",type:"line",smooth:true,connectNulls:false,symbolSize:9,lineStyle:{opacity:selectedMonth ? .28 : 1},data:d.map(x=>({value:x.non_vvic,itemStyle:{opacity:!selectedMonth||x.month===selectedMonth?1:.2}})),label:{show:true,formatter:(x:any)=>pct(x.value),color:"#2e5db2"}}

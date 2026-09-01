@@ -35,6 +35,23 @@ function rankColor(valuePct: number) {
   return "#f0df00";
 }
 
+function heatColor(value: number, min: number, max: number) {
+  const colors = [
+    [255, 247, 251],
+    [239, 213, 238],
+    [209, 139, 209],
+    [172, 74, 179],
+  ];
+  const pct = max <= min ? 1 : Math.max(0, Math.min(1, (value - min) / (max - min)));
+  const scaled = pct * (colors.length - 1);
+  const index = Math.min(colors.length - 2, Math.floor(scaled));
+  const ratio = scaled - index;
+  const from = colors[index];
+  const to = colors[index + 1];
+  const rgb = from.map((channel, i) => Math.round(channel + (to[i] - channel) * ratio));
+  return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+}
+
 function CustomerBarChart({ rows, selected, onSelect }: { rows: CustomerRow[]; selected: string | null; onSelect: (name: string) => void }) {
   const safeRows = rows.filter((r) => r.eff_pct != null);
   const option = useMemo(() => ({
@@ -139,32 +156,60 @@ export default function MinVSEffDashboard() {
     const minEff = effValues.length ? Math.min(...effValues) : 0;
     const maxEff = effValues.length ? Math.max(...effValues) : 100;
     const maxProduce = produceValues.length ? Math.max(...produceValues) : 1;
-    const pointOpacity = (d: HeatPoint) => crossFactory && crossPdType && (crossFactory !== d.factory || crossPdType !== d.pd_type) ? 0.24 : 1;
+    const isSelected = (d: HeatPoint) => crossFactory === d.factory && crossPdType === d.pd_type;
     const heat = data.heatmap.map((d) => ({
       value: [x.indexOf(d.factory), y.indexOf(d.pd_type), Number(d.eff_pct ?? 0) * 100],
-      itemStyle: { opacity: pointOpacity(d) },
+      itemStyle: { opacity: 1 },
     }));
     const bubbles = data.heatmap.map((d) => ({
-      value: [x.indexOf(d.factory), y.indexOf(d.pd_type), Number(d.min_produce ?? 0), Number(d.eff_pct ?? 0) * 100],
-      itemStyle: { color: "rgba(255,255,255,.25)", borderColor: crossFactory === d.factory && crossPdType === d.pd_type ? "#0757d7" : "#424242", borderWidth: crossFactory === d.factory && crossPdType === d.pd_type ? 3 : 2, opacity: pointOpacity(d) },
+      value: [x.indexOf(d.factory), y.indexOf(d.pd_type), Number(d.min_produce ?? 0), Number(d.eff_pct ?? 0) * 100, isSelected(d) ? 1 : 0],
+      itemStyle: { color: isSelected(d) ? "rgba(7,87,215,.20)" : "rgba(255,255,255,.25)", borderColor: isSelected(d) ? "#0757d7" : "#424242", borderWidth: isSelected(d) ? 4 : 2, opacity: 1 },
     }));
+    const selectedBubble = bubbles.filter((d) => d.value[4] === 1);
+    const selectedCell = data.heatmap.filter(isSelected).map((d) => {
+      const effPct = Number(d.eff_pct ?? 0) * 100;
+      return {
+        value: [x.indexOf(d.factory), y.indexOf(d.pd_type), effPct],
+        itemStyle: { color: heatColor(effPct, minEff, maxEff) },
+      };
+    });
     return {
       animationDuration: 300,
       grid: { left: 72, right: 130, top: 28, bottom: 50 },
       tooltip: { trigger: "item", formatter: (p: any) => { if (p.seriesType !== "scatter") return ""; const v = p.value; return `<b>${x[v[0]]} · ${y[v[1]]}</b><br/>EFF%: ${Number(v[3]).toFixed(1)}%<br/>Min Produce: ${Number(v[2]).toLocaleString()}`; } },
       xAxis: { type: "category", data: x, name: "FACTORY", nameLocation: "middle", nameGap: 30, axisTick: { show: false }, axisLine: { lineStyle: { color: "#cfd9e5" } }, axisLabel: { color: "#273246", fontSize: 12, fontWeight: 700 } },
       yAxis: { type: "category", data: y, inverse: true, axisTick: { show: false }, axisLine: { lineStyle: { color: "#cfd9e5" } }, axisLabel: { color: "#273246", fontSize: 12 } },
-      visualMap: { type: "continuous", seriesIndex: 0, min: Math.floor(minEff), max: Math.ceil(maxEff || 100), orient: "vertical", right: 20, top: 25, itemHeight: 120, itemWidth: 16, text: ["EFF % by FAC", ""], textGap: 8, precision: 0, calculable: false, inRange: { color: ["#fff7fb", "#efd5ee", "#d18bd1", "#ac4ab3"] } },
+      visualMap: { type: "continuous", seriesIndex: 0, min: Math.floor(minEff), max: Math.ceil(maxEff || 100), orient: "vertical", right: 20, top: 25, itemHeight: 120, itemWidth: 16, text: ["EFF % by FAC", ""], textGap: 8, precision: 0, calculable: false, hoverLink: true, inRange: { color: ["#fff7fb", "#efd5ee", "#d18bd1", "#ac4ab3"] } },
       series: [
         { type: "heatmap", data: heat, itemStyle: { borderColor: "#ffffff", borderWidth: 2 }, emphasis: { itemStyle: { shadowBlur: 8, shadowColor: "rgba(0,0,0,.18)" } } },
-        { type: "scatter", data: bubbles, z: 5, symbolSize: (v: number[]) => 8 + 30 * Math.sqrt(Math.max(0, v[2]) / maxProduce), label: { show: true, color: "#222", fontSize: 9, fontWeight: 700, formatter: (p: any) => `${Number(p.value[3]).toFixed(0)}%` } },
+        {
+          type: "custom",
+          coordinateSystem: "cartesian2d",
+          data: selectedCell,
+          z: 4,
+          silent: true,
+          renderItem: (_params: any, api: any) => {
+            const center = api.coord([api.value(0), api.value(1)]);
+            const size = api.size([1, 1]);
+            const width = size[0] * 1.08;
+            const height = size[1] * 1.08;
+            return {
+              type: "rect",
+              shape: { x: center[0] - width / 2, y: center[1] - height / 2, width, height },
+              style: { fill: api.visual("color"), stroke: "#ffffff", lineWidth: 2, shadowBlur: 10, shadowColor: "rgba(64,24,72,.24)" },
+            };
+          },
+        },
+        { type: "scatter", data: bubbles, z: 5, symbolSize: (v: number[]) => 8 + 30 * Math.sqrt(Math.max(0, v[2]) / maxProduce) + (v[4] ? 14 : 0), label: { show: true, color: "#222", fontSize: 9, fontWeight: 700, formatter: (p: any) => `${Number(p.value[3]).toFixed(0)}%` } },
+        { type: "effectScatter", data: selectedBubble, z: 6, silent: true, rippleEffect: { scale: 2.5, brushType: "stroke" }, symbolSize: (v: number[]) => 22 + 30 * Math.sqrt(Math.max(0, v[2]) / maxProduce), itemStyle: { color: "rgba(7,87,215,.24)", borderColor: "#0757d7", borderWidth: 3 } },
       ],
     };
   }, [data.heatmap, heatAxes, crossFactory, crossPdType]);
 
   const selectHeat = (p: any) => {
     if (p.seriesType !== "scatter" && p.seriesType !== "heatmap") return;
-    const [factoryIndex, productIndex] = Array.isArray(p.value) ? p.value : [];
+    const value = Array.isArray(p.value) ? p.value : p.data?.value;
+    const [factoryIndex, productIndex] = Array.isArray(value) ? value : [];
     const f = heatAxes.x[factoryIndex];
     const pd = heatAxes.y[productIndex];
     if (!f || !pd) return;

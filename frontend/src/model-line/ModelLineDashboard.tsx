@@ -23,17 +23,24 @@ const yearStartFor = (value: string, minDate?: string | null) => { const yearSta
 const esc = (value: string) => value.replace(/[&<>"']/g, x => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[x]!));
 const productColor = (name: string) => { let hash = 0; for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0; return PRODUCT_COLORS[Math.abs(hash) % PRODUCT_COLORS.length]; };
 
-const bindHorizontalTrackpadPan = (chart: any, itemCount: number, visibleCount: number) => {
+const bindTrackpadPan = (chart: any, itemCount: number, visibleCount: number) => {
   const dom = chart?.getDom?.(); if (!dom || itemCount <= visibleCount) return;
-  const previous = (dom as any).__horizontalTrackpadPan; if (previous) dom.removeEventListener("wheel", previous);
+  const previous = (dom as any).__trackpadPan; if (previous) dom.removeEventListener("wheel", previous);
+  (dom as any).__trackpadPanRemainder = 0;
   const handler = (event: WheelEvent) => {
-    if (Math.abs(event.deltaX) < 1 || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
-    event.preventDefault(); const zoom = chart.getOption()?.dataZoom?.[0] ?? {}; const currentStart = Number(zoom.startValue ?? 0);
-    const maxStart = Math.max(0, itemCount - visibleCount); const step = Math.max(1, Math.min(3, Math.round(Math.abs(event.deltaX) / 45)));
-    const nextStart = Math.max(0, Math.min(maxStart, currentStart + (event.deltaX > 0 ? step : -step))); if (nextStart === currentStart) return;
+    const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+    if (Math.abs(delta) < 1) return;
+    event.preventDefault(); event.stopPropagation();
+    const zoom = chart.getOption()?.dataZoom?.[0] ?? {}; const currentStart = Number(zoom.startValue ?? 0);
+    const maxStart = Math.max(0, itemCount - visibleCount);
+    const wheelUnit = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 30 : event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? 240 : 1;
+    const threshold = 120; const nextRemainder = ((dom as any).__trackpadPanRemainder ?? 0) + delta * wheelUnit;
+    const step = Math.trunc(nextRemainder / threshold); (dom as any).__trackpadPanRemainder = nextRemainder - step * threshold;
+    if (step === 0) return;
+    const nextStart = Math.max(0, Math.min(maxStart, currentStart + step)); if (nextStart === currentStart) return;
     chart.dispatchAction({ type: "dataZoom", dataZoomIndex: 0, startValue: nextStart, endValue: nextStart + visibleCount - 1 });
   };
-  dom.addEventListener("wheel", handler, { passive: false }); (dom as any).__horizontalTrackpadPan = handler;
+  dom.addEventListener("wheel", handler, { passive: false }); (dom as any).__trackpadPan = handler;
 };
 
 async function getJSON<T>(path: string, startDate?: string, endDate?: string, factory?: string): Promise<T> {
@@ -84,6 +91,6 @@ export default function ModelLineDashboard() {
 
   return <div className="ml-page"><div className="ml-header"><h1>Model-Line - {year || "Dashboard"}</h1><label><span>START DATE</span><input type="date" value={startDate} min={filters.min_date || undefined} max={endDate} onChange={(e) => { setStartDate(e.target.value); setSelectedModel(null); }} /></label><label><span>END DATE</span><input type="date" value={endDate} min={startDate} max={filters.max_date || undefined} onChange={(e) => { setEndDate(e.target.value); setSelectedModel(null); }} /></label><div className="ml-factories">{["ALL", ...factories].map((f) => <button key={f} className={factory === f ? "active" : ""} onClick={() => { setFactory(f); setSelectedModel(null); }}>{f}</button>)}</div><div className="ml-refresh">REFRESH: {thaiRefresh(summary?.last_refresh)}{selectedModel ? <button onClick={() => setSelectedModel(null)} style={{ marginLeft:10 }}>CLEAR {selectedModel}</button> : null}</div></div>
   {error && <div className="ml-error">{error}</div>}<div className={loading ? "ml-body loading" : "ml-body"}><div className="ml-kpis"><Kpi label="EFF%" value={pct(summary?.eff_pct,1)} /><Kpi label="Min Produce" value={fmtM(summary?.min_produce)} /><Kpi label="PPH" value={fmt(summary?.pph,2)} /><Kpi label="CountStyle" value={fmt(summary?.count_style)} /><Kpi label="#Of Operator" value={fmt(summary?.operator_count)} /><Kpi label="CountLine" value={fmt(summary?.count_line)} /></div>
-  <div className="ml-grid ml-top-grid"><section className="ml-card"><h2>EFF% by Model Line</h2><ReactECharts key={`model-${chartKey}`} notMerge option={modelBarOption} style={{height:300}} onEvents={{click:(p:any)=>p.name&&toggleModel(p.name)}} /></section><section className="ml-card ml-table-card"><h2>EFF% by PD_Type and Model Line</h2><div className="ml-table-scroll"><table><thead><tr><th>PD_Type</th>{productPivot.models.map((m)=><th key={m}>{m}</th>)}<th>Total</th></tr></thead><tbody>{productPivot.rows.map((r)=><tr key={r.pd}><td>{r.pd}</td>{productPivot.models.map((m)=><td key={m}>{pct(r.byModel[m],0)}</td>)}<td>{pct(r.total,0)}</td></tr>)}</tbody></table></div></section><section className="ml-card"><h2>Eff Latest date by Model Line and Line</h2><ReactECharts key={`latest-top-${chartKey}-${visibleLatest.length}`} notMerge option={makeLatestOption(visibleLatest)} style={{height:300}} onChartReady={(chart:any)=>bindHorizontalTrackpadPan(chart,visibleLatest.length,14)} onEvents={{click:(p:any)=>{const row=visibleLatest[p.dataIndex];if(row)toggleModel(row.model_line)}}} /></section></div>
-  <div className="ml-grid ml-bottom-grid"><section className="ml-card"><div className="ml-title-row"><h2>EFF% by Date and Model Line</h2></div><ReactECharts key={`ribbon-${chartKey}`} notMerge option={ribbonOption} style={{height:310}} onEvents={{click:(p:any)=>p.seriesName&&toggleModel(p.seriesName)}} /></section><section className="ml-card"><h2>Eff Latest date by Model Line and Line{selectedModel ? ` · ${selectedModel}` : ""}</h2><ReactECharts key={`latest-bottom-${chartKey}-${visibleLatest.length}`} notMerge option={makeLatestOption(visibleLatest,true)} style={{height:310}} onChartReady={(chart:any)=>bindHorizontalTrackpadPan(chart,visibleLatest.length,14)} onEvents={{click:(p:any)=>{const row=visibleLatest[p.dataIndex];if(row)toggleModel(row.model_line)}}} /></section></div></div></div>;
+  <div className="ml-grid ml-top-grid"><section className="ml-card"><h2>EFF% by Model Line</h2><ReactECharts key={`model-${chartKey}`} notMerge option={modelBarOption} style={{height:300}} onEvents={{click:(p:any)=>p.name&&toggleModel(p.name)}} /></section><section className="ml-card ml-table-card"><h2>EFF% by PD_Type and Model Line</h2><div className="ml-table-scroll"><table><thead><tr><th>PD_Type</th>{productPivot.models.map((m)=><th key={m}>{m}</th>)}<th>Total</th></tr></thead><tbody>{productPivot.rows.map((r)=><tr key={r.pd}><td>{r.pd}</td>{productPivot.models.map((m)=><td key={m}>{pct(r.byModel[m],0)}</td>)}<td>{pct(r.total,0)}</td></tr>)}</tbody></table></div></section><section className="ml-card"><h2>Eff Latest date by Model Line and Line</h2><ReactECharts key={`latest-top-${chartKey}-${visibleLatest.length}`} notMerge option={makeLatestOption(visibleLatest)} style={{height:300}} onChartReady={(chart:any)=>bindTrackpadPan(chart,visibleLatest.length,14)} onEvents={{click:(p:any)=>{const row=visibleLatest[p.dataIndex];if(row)toggleModel(row.model_line)}}} /></section></div>
+  <div className="ml-grid ml-bottom-grid"><section className="ml-card"><div className="ml-title-row"><h2>EFF% by Date and Model Line</h2></div><ReactECharts key={`ribbon-${chartKey}`} notMerge option={ribbonOption} style={{height:310}} onEvents={{click:(p:any)=>p.seriesName&&toggleModel(p.seriesName)}} /></section><section className="ml-card"><h2>Eff Latest date by Model Line and Line{selectedModel ? ` · ${selectedModel}` : ""}</h2><ReactECharts key={`latest-bottom-${chartKey}-${visibleLatest.length}`} notMerge option={makeLatestOption(visibleLatest,true)} style={{height:310}} onChartReady={(chart:any)=>bindTrackpadPan(chart,visibleLatest.length,14)} onEvents={{click:(p:any)=>{const row=visibleLatest[p.dataIndex];if(row)toggleModel(row.model_line)}}} /></section></div></div></div>;
 }

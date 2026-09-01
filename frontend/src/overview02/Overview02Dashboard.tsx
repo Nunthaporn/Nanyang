@@ -33,21 +33,30 @@ const yearStartFor = (value: string, minDate?: string | null) => {
   return minDate && minDate > yearStart ? minDate : yearStart;
 };
 
-const bindHorizontalTrackpadPan = (chart: any, itemCount: number, visibleCount: number) => {
+const bindTrackpadPan = (chart: any, itemCount: number, visibleCount: number) => {
   const dom = chart?.getDom?.();
   if (!dom || itemCount <= visibleCount) return;
-  const previous = (dom as any).__horizontalTrackpadPan;
+  const previous = (dom as any).__trackpadPan;
   if (previous) dom.removeEventListener("wheel", previous);
+  (dom as any).__trackpadPanRemainder = 0;
 
   const handler = (event: WheelEvent) => {
-    if (Math.abs(event.deltaX) < 1 || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
+    const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+    if (Math.abs(delta) < 1) return;
     event.preventDefault();
+    event.stopPropagation();
 
     const zoom = chart.getOption()?.dataZoom?.[0] ?? {};
     const currentStart = Number(zoom.startValue ?? 0);
     const maxStart = Math.max(0, itemCount - visibleCount);
-    const step = Math.max(1, Math.min(3, Math.round(Math.abs(event.deltaX) / 45)));
-    const nextStart = Math.max(0, Math.min(maxStart, currentStart + (event.deltaX > 0 ? step : -step)));
+    const wheelUnit = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 30 : event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? 240 : 1;
+    const threshold = 120;
+    const nextRemainder = ((dom as any).__trackpadPanRemainder ?? 0) + delta * wheelUnit;
+    const step = Math.trunc(nextRemainder / threshold);
+    (dom as any).__trackpadPanRemainder = nextRemainder - step * threshold;
+    if (step === 0) return;
+
+    const nextStart = Math.max(0, Math.min(maxStart, currentStart + step));
     if (nextStart === currentStart) return;
 
     chart.dispatchAction({
@@ -59,7 +68,7 @@ const bindHorizontalTrackpadPan = (chart: any, itemCount: number, visibleCount: 
   };
 
   dom.addEventListener("wheel", handler, { passive: false });
-  (dom as any).__horizontalTrackpadPan = handler;
+  (dom as any).__trackpadPan = handler;
 };
 
 async function getJSON<T>(path: string, startDate?: string, endDate?: string, factory?: string, gmtType?: string | null, brandName?: string | null): Promise<T> {
@@ -207,8 +216,8 @@ export default function Overview02Dashboard() {
       <div className={loading ? "ov02-grid loading" : "ov02-grid"}>
         <section className="ov02-card"><h2>Daily EFF% by FACTORY</h2><ReactECharts option={ribbonOption} notMerge style={{ height: 295 }} onEvents={{ click: (p: any) => p.seriesName && toggleFactory(p.seriesName) }} /></section>
         <section className="ov02-card"><h2>MTD Eff% &amp; PPH by VVIC Product Type</h2><ReactECharts option={barOption(productRows, true, false, crossGmtType, "GMT_TYPE")} notMerge style={{ height: 295 }} onEvents={{ click: (p: any) => { const r = productRows[p.dataIndex]; if (r) toggleGmt(r.name); } }} /></section>
-        <section className="ov02-card"><h2>MTD Eff% &amp; PPH by VVIC Customer</h2><ReactECharts key={`vvic-${vvicRows.length}`} option={barOption(vvicRows, true, true, crossBrand, "BRAND_NAME")} notMerge style={{ height: 295 }} onChartReady={(chart: any) => bindHorizontalTrackpadPan(chart, vvicRows.length, 12)} onEvents={{ click: (p: any) => { const r = vvicRows[p.dataIndex]; if (r) toggleBrand(r.name); } }} /></section>
-        <section className="ov02-card"><h2>MTD Eff% by Non-VVIC Customer</h2><ReactECharts key={`non-${nonRows.length}`} option={barOption(nonRows, false, true, crossBrand, "BRAND_NAME")} notMerge style={{ height: 295 }} onChartReady={(chart: any) => bindHorizontalTrackpadPan(chart, nonRows.length, 12)} onEvents={{ click: (p: any) => { const r = nonRows[p.dataIndex]; if (r) toggleBrand(r.name); } }} /></section>
+        <section className="ov02-card"><h2>MTD Eff% &amp; PPH by VVIC Customer</h2><ReactECharts key={`vvic-${vvicRows.length}`} option={barOption(vvicRows, true, true, crossBrand, "BRAND_NAME")} notMerge style={{ height: 295 }} onChartReady={(chart: any) => bindTrackpadPan(chart, vvicRows.length, 12)} onEvents={{ click: (p: any) => { const r = vvicRows[p.dataIndex]; if (r) toggleBrand(r.name); } }} /></section>
+        <section className="ov02-card"><h2>MTD Eff% by Non-VVIC Customer</h2><ReactECharts key={`non-${nonRows.length}`} option={barOption(nonRows, false, true, crossBrand, "BRAND_NAME")} notMerge style={{ height: 295 }} onChartReady={(chart: any) => bindTrackpadPan(chart, nonRows.length, 12)} onEvents={{ click: (p: any) => { const r = nonRows[p.dataIndex]; if (r) toggleBrand(r.name); } }} /></section>
       </div>
     </div>
   );
